@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
-from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, Time
+from sqlalchemy import Boolean, Date, DateTime, Enum as SQLEnum, ForeignKey, Index, Integer, Numeric, String, Time, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
@@ -21,6 +21,11 @@ class ContractStatus(str, Enum):
     ACTIVE = "active"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+
+
+class StudentGroupHistoryKind(str, Enum):
+    ENROLLMENT = "enrollment"
+    TRANSFER = "transfer"
 
 
 class User(Base):
@@ -48,6 +53,7 @@ class Group(Base):
 
     students: Mapped[list["Student"]] = relationship(back_populates="group")
     schedules: Mapped[list["Schedule"]] = relationship(back_populates="group")
+    history_entries: Mapped[list["StudentGroupHistory"]] = relationship(back_populates="group")
 
 
 class Student(Base):
@@ -62,6 +68,34 @@ class Student(Base):
     group: Mapped["Group | None"] = relationship(back_populates="students")
     personal_info: Mapped["PersonalInfo | None"] = relationship(back_populates="student", uselist=False, cascade="all, delete-orphan")
     contracts: Mapped[list["Contract"]] = relationship(back_populates="student", cascade="all, delete-orphan")
+    group_history: Mapped[list["StudentGroupHistory"]] = relationship(
+        back_populates="student", cascade="all, delete-orphan"
+    )
+
+
+class StudentGroupHistory(Base):
+    __tablename__ = "student_group_history"
+    __table_args__ = (
+        Index(
+            "uq_student_group_history_open",
+            "student_id",
+            unique=True,
+            postgresql_where=text("to_date IS NULL"),
+            sqlite_where=text("to_date IS NULL"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id", ondelete="RESTRICT"), nullable=False)
+    kind: Mapped[StudentGroupHistoryKind] = mapped_column(SQLEnum(StudentGroupHistoryKind), nullable=False)
+    # Old group assignments have no reliable enrollment date; NULL means "unknown".
+    from_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    to_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    student: Mapped["Student"] = relationship(back_populates="group_history")
+    group: Mapped["Group"] = relationship(back_populates="history_entries")
 
 
 class PersonalInfo(Base):

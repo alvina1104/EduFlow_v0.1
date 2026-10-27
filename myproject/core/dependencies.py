@@ -6,11 +6,11 @@ from myproject.database.db import get_db
 from myproject.database.models import User, UserRole, Student
 from myproject.core.security import decode_token
 
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
     credentials_exception = HTTPException(
@@ -18,6 +18,9 @@ def get_current_user(
         detail="Недействительный или просроченный токен",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if credentials is None:
+        raise credentials_exception
 
     try:
         token = credentials.credentials
