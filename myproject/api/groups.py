@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from myproject.database.db import get_db
-from myproject.database.models import Group, User, Student
+from myproject.database.models import Group, User, Student, StudentGroupHistory
 from myproject.database.schemas import GroupCreateSchema, GroupResponseSchema
 from myproject.core.dependencies import get_current_admin, get_current_student
 
@@ -65,5 +65,11 @@ def delete_group(group_id: int, db: Session = Depends(get_db), admin: User = Dep
         raise HTTPException(404, "Группа не найдена")
     if db.query(Student).filter(Student.group_id == group_id).first():
         raise HTTPException(409, "Нельзя удалить группу, в которой есть студенты")
-    db.delete(group)
-    db.commit()
+    if db.query(StudentGroupHistory.id).filter(StudentGroupHistory.group_id == group_id).first():
+        raise HTTPException(409, "Нельзя удалить группу: сохранена история переводов")
+    try:
+        db.delete(group)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Нельзя удалить группу: есть связанные данные")

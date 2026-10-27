@@ -664,7 +664,7 @@ const student = await res.json();
 Для следующих возможностей в проекте **нет API endpoints** — во frontend их использовать нельзя:
 
 - **Schedules (расписание):** модель `Schedule` и схемы `ScheduleCreateSchema` / `ScheduleResponseSchema` есть, но ни одного роута нет. Управления расписанием через API не существует.
-- **Students:** нет `PUT` и `PATCH` — данные студента меняются только через `/personal-info` и `/users`.
+- **Students:** `PATCH /students/{student_id}` доступен администратору; обновляет группу и/или номер студента с сохранением истории.
 - **Payments:** нет `PUT` — изменение только через `PATCH /payments/{payment_id}/status`.
 - **Personal Info:** нет `DELETE /personal-info/me` — удаление доступно только администратору по `student_id`.
 - **Auth:** нет смены пароля и восстановления пароля.
@@ -672,6 +672,17 @@ const student = await res.json();
 - **Root endpoint:** нет `/`, есть только `/health`.
 
 ---
+
+### Изменения: смена группы и история переводов
+
+- `PATCH /students/{student_id}` (Admin): частично обновляет `group_id` (включая `null`) и/или `student_number`. Пустое тело допустимо.
+- `GET /students/me/groups` (Student): собственная история групп.
+- `GET /students/{student_id}/groups` (Admin): история групп выбранного студента.
+- Ответ PATCH: обычный `StudentResponseSchema`. Ошибки: 401, 403, 404 (студент или группа), 409 (номер студента либо конфликт истории), 422.
+- История содержит `kind` = `enrollment` / `transfer`, `from_date`, `to_date`, `reason` и `group` с названием и курсом.
+- При переводе сохраняются студент, контракт и платежи. Повторное назначение той же группы не создаёт новую запись.
+- Для существующих студентов миграция сохраняет их текущую группу; `from_date: null` означает, что фактическая дата поступления неизвестна.
+- Удаление группы с историей переводов запрещено (409).
 
 ## 6. Проверка через Swagger UI
 

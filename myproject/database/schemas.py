@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
-from .models import UserRole, PaymentStatus, ContractStatus
+from .models import UserRole, PaymentStatus, ContractStatus, StudentGroupHistoryKind
 
 
 class BaseSchema(BaseModel):
@@ -76,6 +76,11 @@ class StudentResponseSchema(BaseSchema):
     personal_info: PersonalInfoResponseSchema | None
 
 
+class StudentUpdateSchema(BaseModel):
+    group_id: int | None = Field(default=None, ge=1)
+    student_number: str | None = Field(default=None, min_length=1, max_length=30)
+
+
 class GroupCreateSchema(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     course_name: str = Field(min_length=1, max_length=150)
@@ -89,6 +94,17 @@ class GroupResponseSchema(BaseSchema):
     course_name: str
     start_date: date
     end_date: date | None
+
+
+class StudentGroupHistoryResponseSchema(BaseSchema):
+    id: int
+    student_id: int
+    group_id: int
+    kind: StudentGroupHistoryKind
+    from_date: date | None
+    to_date: date | None
+    reason: str | None
+    group: GroupResponseSchema
 
 
 class ContractCreateSchema(BaseModel):
