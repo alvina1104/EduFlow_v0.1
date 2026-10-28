@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 import uvicorn
-from myproject.api import auth, contracts, groups, payments, personal_info, students, users
-from myproject.admin.setup import setup_admin
+from myproject.api import (auth, contracts, groups, payments, personal_info, students,
+                           users, schedules, study)
 from myproject.database.db import engine
 
 
@@ -15,7 +15,9 @@ edu_app.include_router(groups.groups_router)
 edu_app.include_router(contracts.contracts_router)
 edu_app.include_router(payments.payments_router)
 edu_app.include_router(users.user_router)
-setup_admin(edu_app)
+edu_app.include_router(schedules.schedules_router)
+edu_app.include_router(study.study_router)
+# SQLAdmin is temporarily disabled until access is secured.
 
 
 @edu_app.get("/health", tags=["Health"], summary="Проверка состояния приложения и базы данных")
