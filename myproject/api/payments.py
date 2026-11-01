@@ -24,37 +24,80 @@ def calculate_balance(contract_id: int, db: Session):
 
 
 
+def get_month_paid(contract_id: int, payment_month: str, db: Session):
+    return db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
+        Payment.contract_id == contract_id,
+        Payment.payment_month == payment_month,
+        Payment.status == PaymentStatus.CONFIRMED
+    ).scalar()
+
+
+
+
 @payments_router.post("/", response_model=PaymentResponseSchema, status_code=201)
-def create_payment(data: PaymentCreateSchema, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_payment(
+    data: PaymentCreateSchema,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
     contract = db.query(Contract).filter(Contract.id == data.contract_id).with_for_update().first()
+
     if not contract:
         raise HTTPException(404, "Контракт не найден")
 
     if user.role == UserRole.STUDENT:
         student = db.query(Student).filter(Student.user_id == user.id).first()
+
         if not student or contract.student_id != student.id:
             raise HTTPException(403, "Нет доступа к контракту")
+
     elif user.role != UserRole.ADMIN:
         raise HTTPException(403, "Нет доступа")
 
     request_id = str(data.request_id)
+
     payment = db.query(Payment).filter(Payment.request_id == request_id).first()
 
     if payment:
-        if (payment.created_by_user_id != user.id or payment.contract_id != data.contract_id
-                or payment.amount != data.amount or payment.payment_method != data.payment_method
-                or payment.payment_month != data.payment_month):
+        if (
+            payment.created_by_user_id != user.id
+            or payment.contract_id != data.contract_id
+            or payment.amount != data.amount
+            or payment.payment_method != data.payment_method
+            or payment.payment_month != data.payment_month
+        ):
             raise HTTPException(409, "Этот request_id уже используется")
+
         return payment
 
     if contract.status != ContractStatus.ACTIVE:
         raise HTTPException(409, "Контракт не активен")
 
+    month_paid = get_month_paid(contract.id, data.payment_month, db)
+
+    month_remaining = contract.monthly_payment - month_paid
+
+    if month_remaining <= 0:
+        raise HTTPException(409, "Этот месяц уже полностью оплачен")
+
+    pending = db.query(Payment.id).filter(Payment.contract_id == contract.id,
+                                          Payment.payment_month == data.payment_month,
+                                          Payment.status == PaymentStatus.PENDING).first()
+
+    if pending:
+        raise HTTPException(409, "Платёж за этот месяц ожидает проверки")
+
+    if data.amount > month_remaining:
+        raise HTTPException(409, "Сумма превышает остаток за месяц")
+
+    balance = calculate_balance(contract.id, db)
+
+    if data.amount > balance["remaining_amount"]:
+        raise HTTPException(409, "Сумма превышает остаток контракта")
+
     if user.role == UserRole.ADMIN:
         if not data.payment_method or not data.payment_method.strip():
             raise HTTPException(422, "Укажите способ оплаты")
-        if data.amount > calculate_balance(contract.id, db)["remaining_amount"]:
-            raise HTTPException(409, "Сумма превышает остаток контракта")
 
     payment = Payment(
         contract_id=contract.id,
@@ -63,12 +106,17 @@ def create_payment(data: PaymentCreateSchema, db: Session = Depends(get_db), use
         amount=data.amount,
         payment_method=data.payment_method,
         payment_month=data.payment_month,
-        status=PaymentStatus.CONFIRMED if user.role == UserRole.ADMIN else PaymentStatus.PENDING,
-        confirmed_by_admin_id=user.id if user.role == UserRole.ADMIN else None,
-        paid_at=datetime.utcnow() if user.role == UserRole.ADMIN else None
-    )
+        status=(
+            PaymentStatus.CONFIRMED
+            if user.role == UserRole.ADMIN
+            else PaymentStatus.PENDING
+        ),
+        confirmed_by_admin_id=(user.id if user.role == UserRole.ADMIN else None),
+        paid_at=(datetime.utcnow()
+                 if user.role == UserRole.ADMIN else None))
 
     db.add(payment)
+
     try:
         db.commit()
         db.refresh(payment)
@@ -77,6 +125,7 @@ def create_payment(data: PaymentCreateSchema, db: Session = Depends(get_db), use
         raise HTTPException(409, "Платёж с таким request_id уже существует")
 
     return payment
+
 
 
 
@@ -110,32 +159,48 @@ def get_payment(payment_id: int, db: Session = Depends(get_db), user: User = Dep
 
 
 @payments_router.patch("/{payment_id}/status", response_model=PaymentResponseSchema)
-def update_payment_status(payment_id: int, data: PaymentStatusUpdateSchema, db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
+def update_payment_status(
+    payment_id: int,
+    data: PaymentStatusUpdateSchema,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
+
     if not payment:
         raise HTTPException(404, "Платёж не найден")
 
     contract = db.query(Contract).filter(Contract.id == payment.contract_id).with_for_update().first()
-    payment = db.query(Payment).filter(Payment.id == payment_id).with_for_update().first()
+
+    payment = db.query(Payment).filter(Payment.id == payment_id).with_for_update().populate_existing().first()
 
     if payment.status != PaymentStatus.PENDING:
         raise HTTPException(409, "Платёж уже обработан")
+
     if data.status not in (PaymentStatus.CONFIRMED, PaymentStatus.REJECTED):
         raise HTTPException(400, "Можно только подтвердить или отклонить платёж")
-    if contract.status != ContractStatus.ACTIVE:
-        raise HTTPException(409, "Контракт не активен")
 
     if data.status == PaymentStatus.CONFIRMED:
+        if contract.status != ContractStatus.ACTIVE:
+            raise HTTPException(409, "Контракт не активен")
+
+        month_paid = get_month_paid(contract.id, payment.payment_month, db)
+
+        if payment.amount > contract.monthly_payment - month_paid:
+            raise HTTPException(409, "Превышена сумма оплаты за месяц")
+
         balance = calculate_balance(contract.id, db)
+
         if payment.amount > balance["remaining_amount"]:
-            raise HTTPException(409, "Сумма платежа превышает остаток контракта")
+            raise HTTPException(409, "Сумма превышает остаток контракта")
 
     payment.status = data.status
     payment.confirmed_by_admin_id = admin.id
-    payment.paid_at = datetime.utcnow() if data.status == PaymentStatus.CONFIRMED else None
+    payment.paid_at = (datetime.utcnow()if data.status == PaymentStatus.CONFIRMED else None)
 
     db.commit()
     db.refresh(payment)
+
     return payment
 
 
