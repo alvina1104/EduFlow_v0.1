@@ -37,6 +37,11 @@ class PersonalInfoStatus(str, Enum):
     REVISION = "revision"
 
 
+class ContractType(str, Enum):
+    ACADEMY = "academy"
+    COLLEGE = "college"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -175,6 +180,9 @@ class Contract(Base):
     status: Mapped[ContractStatus] = mapped_column(SQLEnum(ContractStatus), default=ContractStatus.ACTIVE, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     payment_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    type: Mapped[ContractType] = mapped_column(SQLEnum(ContractType),
+                                               default=ContractType.ACADEMY,
+                                               server_default="ACADEMY",nullable=False)
 
     student: Mapped["Student"] = relationship(back_populates="contracts")
     payments: Mapped[list["Payment"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
@@ -219,3 +227,34 @@ class Payment(Base):
     confirmed_by_admin: Mapped["User | None"] = relationship(
         back_populates="confirmed_payments", foreign_keys=[confirmed_by_admin_id]
     )
+
+
+class FinikTransaction(Base):
+    __tablename__ = "finik_transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    payment_id: Mapped[int] = mapped_column(
+        ForeignKey("payments.id"), unique=True, nullable=False
+    )
+    provider_payment_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False
+    )
+    provider_transaction_id: Mapped[str | None] = mapped_column(
+        String(150), unique=True, nullable=True
+    )
+    provider_operation_id: Mapped[str | None] = mapped_column(String(150))
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    payment_url: Mapped[str | None] = mapped_column(String)
+    review_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    resolved_by_admin_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    admin_comment: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, server_default=func.now(),
+        nullable=False
+    )
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    payment: Mapped["Payment"] = relationship()

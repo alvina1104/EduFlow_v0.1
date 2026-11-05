@@ -1,10 +1,11 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from myproject.database.db import get_db
-from myproject.database.models import (User, Student, PersonalInfo, Group, StudentGroupHistoryKind,
-                                       StudentGroupHistory, UserRole)
-from myproject.database.schemas import StudentCreateSchema, StudentResponseSchema,StudentUpdateSchema
+from myproject.database.models import (User, Student, PersonalInfo, Group, Contract,
+                                       StudentGroupHistoryKind, StudentGroupHistory, UserRole)
+from myproject.database.schemas import StudentCreateSchema, StudentResponseSchema, StudentUpdateSchema
 from myproject.core.dependencies import get_current_admin, get_current_student, get_current_user
 from myproject.core.security import hash_password
 from datetime import date
@@ -69,7 +70,6 @@ def get_student(student_id: int, db: Session = Depends(get_db), admin: User = De
     return student
 
 
-
 @students_router.patch("/{student_id}", response_model=StudentResponseSchema)
 def update_student(student_id: int, data: StudentUpdateSchema, db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
     student = db.query(Student).filter(Student.id == student_id).with_for_update().first()
@@ -121,15 +121,17 @@ def update_student(student_id: int, data: StudentUpdateSchema, db: Session = Dep
     return student
 
 
-
-
 @students_router.delete("/{student_id}", status_code=204)
 def delete_student(student_id: int, db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(Student.id == student_id).with_for_update().first()
     if not student:
         raise HTTPException(404, "Студент не найден")
 
+    if db.query(Contract.id).filter(Contract.student_id == student.id).first():
+        raise HTTPException(409, "Нельзя удалить студента с контрактами и историей платежей")
+
     user = db.query(User).filter(User.id == student.user_id).first()
+
     try:
         db.delete(student)
         if user:
@@ -138,6 +140,7 @@ def delete_student(student_id: int, db: Session = Depends(get_db), admin: User =
     except IntegrityError:
         db.rollback()
         raise HTTPException(409, "Студента нельзя удалить: есть связанные данные")
+
 
 @students_router.put("/me/photo")
 def upload_my_photo(file: UploadFile = File(...), student: Student = Depends(get_current_student), db: Session = Depends(get_db)):

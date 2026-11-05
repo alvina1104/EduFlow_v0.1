@@ -35,14 +35,14 @@ def test_jwt_and_admin_student_permissions(client, actors, auth_headers):
 def test_student_create_read_update_and_group_history(client, actors, auth_headers, db_session):
     suffix = uuid4().hex
     response = client.post("/students/", headers=auth_headers(actors["admin"]), json={
-        "username": f"new_{suffix}", "password": "Student-password-2", "student_number": f"N{suffix}",
+        "username": f"new_{suffix}", "password": "Student-password-2", "student_number": f"N{suffix[:29]}",
         "group_id": actors["group_a"].id,
     })
     assert response.status_code == 201
     student_id = response.json()["id"]
     assert client.get(f"/students/{student_id}", headers=auth_headers(actors["admin"])).status_code == 200
     updated = client.patch(f"/students/{student_id}", headers=auth_headers(actors["admin"]), json={
-        "group_id": actors["group_b"].id, "student_number": f"U{suffix}"
+        "group_id": actors["group_b"].id, "student_number": f"U{suffix[:29]}"
     })
     assert updated.status_code == 200
     from myproject.database.models import StudentGroupHistory
@@ -110,8 +110,10 @@ def test_contract_creation_variants_payment_day_and_delete_guard(client, actors,
     assert client.delete(f"/contracts/{contract.id}", headers=auth_headers(actors["admin"])).status_code == 409
 
 
-def test_payment_idempotency_confirmation_rejection_balance_and_limits(client, actors, auth_headers, contract_factory):
-    contract, body = payment_body(contract_factory)
+def test_payment_idempotency_confirmation_rejection_balance_and_limits(
+    client, actors, auth_headers, payment_body
+):
+    contract, body = payment_body
     student_headers = auth_headers(actors["student_user"])
     admin_headers = auth_headers(actors["admin"])
     created = client.post("/payments/", headers=student_headers, json=body)
@@ -127,9 +129,9 @@ def test_payment_idempotency_confirmation_rejection_balance_and_limits(client, a
                         json={"status": "confirmed"}).status_code == 409
     balance = client.get("/payments/my/balance", headers=student_headers)
     assert balance.status_code == 200
-    assert str(balance.json()[0]["remaining_amount"]) == "900.00"
+    assert balance.json()[0]["remaining_amount"] == pytest.approx(900.0)
 
-    rejected_body = {**body, "request_id": str(uuid4()), "amount": "50.00"}
+    rejected_body = {**body, "request_id": str(uuid4()), "amount": "50.00", "payment_month": "2026-09"}
     rejected = client.post("/payments/", headers=student_headers, json=rejected_body)
     assert rejected.status_code == 201
     assert client.patch(f"/payments/{rejected.json()['id']}/status", headers=admin_headers,

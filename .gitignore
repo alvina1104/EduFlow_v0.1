@@ -25,3 +25,7 @@ __pycache__/
 
 # Logs
 *.log
+*.pem
+reports/
+*.db
+*.dump

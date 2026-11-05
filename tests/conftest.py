@@ -143,12 +143,14 @@ def auth_headers(actors):
 def contract_factory(db_session, actors):
     from datetime import date
     from decimal import Decimal
-    from myproject.database.models import Contract
+    from myproject.database.models import Contract, ContractType
 
-    def create(total="1000.00", monthly="100.00", months=10, payment_day=15):
+    def create(total="1000.00", monthly="100.00", months=10, payment_day=15,
+               contract_type=ContractType.ACADEMY):
         contract = Contract(student_id=actors["student"].id, total_amount=Decimal(total),
                             monthly_payment=Decimal(monthly), duration_months=months,
-                            start_date=date(2025, 1, 1), payment_day=payment_day)
+                            start_date=date(2026, 1, 1), payment_day=payment_day,
+                            type=contract_type)
         db_session.add(contract)
         db_session.flush()
         return contract

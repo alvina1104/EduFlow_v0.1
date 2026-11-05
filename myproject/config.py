@@ -6,8 +6,6 @@ from dotenv import load_dotenv
 PACKAGE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = PACKAGE_DIR.parent
 
-# Сначала читается корневой .env (Docker/единая конфигурация),
-# затем локальный myproject/.env (локальная разработка).
 load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(PACKAGE_DIR / ".env")
 
@@ -24,3 +22,12 @@ if not DATABASE_URL:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+
+FINIK_ENV = os.getenv("FINIK_ENV", "beta")
+FINIK_API_KEY = os.getenv("FINIK_API_KEY", "")
+FINIK_ACCOUNT_ID = os.getenv("FINIK_ACCOUNT_ID", "")
+FINIK_PRIVATE_KEY_PATH = os.getenv("FINIK_PRIVATE_KEY_PATH", "")
+FINIK_PUBLIC_KEY_PATH = os.getenv("FINIK_PUBLIC_KEY_PATH", "")
+FINIK_WEBHOOK_URL = os.getenv("FINIK_WEBHOOK_URL", "")
+FINIK_REDIRECT_URL = os.getenv("FINIK_REDIRECT_URL", "")

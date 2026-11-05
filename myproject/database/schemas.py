@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .models import (UserRole, PaymentStatus, ContractStatus,
-                     StudentGroupHistoryKind, PersonalInfoStatus)
+                     StudentGroupHistoryKind, PersonalInfoStatus, ContractType)
 from pydantic import UUID4
 
 
@@ -145,6 +145,7 @@ class ContractCreateSchema(BaseModel):
     duration_months: int = Field(gt=0)
     start_date: date
     payment_day: int | None = Field(default=None, ge=1, le=28)
+    type: ContractType = ContractType.ACADEMY
 
 
 
@@ -183,6 +184,7 @@ class ContractResponseSchema(BaseSchema):
     created_at: datetime
     payment_day: int | None
     academic_leaves: list[AcademicLeaveResponseSchema]
+    type: ContractType
 
 
 
@@ -192,7 +194,9 @@ class PaymentCreateSchema(BaseModel):
     contract_id: int = Field(gt=0)
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     payment_method: str | None = Field(default=None, max_length=50)
-    payment_month: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    payment_month: str | None = Field(
+        default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"
+    )
 
 
 
@@ -226,3 +230,34 @@ class ScheduleCreateSchema(BaseModel):
         if self.start_time >= self.end_time:
             raise ValueError("Время начала должно быть раньше времени окончания")
         return self
+
+
+class FinikPaymentCreateSchema(BaseModel):
+    request_id: UUID4
+    contract_id: int = Field(gt=0)
+    amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    payment_month: str | None = Field(
+        default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"
+    )
+
+
+class FinikResolveSchema(BaseModel):
+    action: Literal["confirm", "reject"]
+    provider_transaction_id: str | None = Field(default=None, max_length=150)
+    comment: str | None = Field(default=None, max_length=500)
+
+
+class FinikTransactionResponseSchema(BaseSchema):
+    id: int
+    payment_id: int
+    provider_payment_id: str
+    provider_transaction_id: str | None
+    provider_operation_id: str | None
+    status: str
+    payment_url: str | None
+    review_reason: str | None
+    resolved_by_admin_id: int | None
+    resolved_at: datetime | None
+    admin_comment: str | None
+    created_at: datetime
+    confirmed_at: datetime | None
