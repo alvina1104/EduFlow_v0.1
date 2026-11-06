@@ -243,7 +243,7 @@ class FinikTransaction(Base):
         String(150), unique=True, nullable=True
     )
     provider_operation_id: Mapped[str | None] = mapped_column(String(150))
-    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     payment_url: Mapped[str | None] = mapped_column(String)
     review_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     resolved_by_admin_id: Mapped[int | None] = mapped_column(

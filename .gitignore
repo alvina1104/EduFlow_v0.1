@@ -26,6 +26,13 @@ __pycache__/
 # Logs
 *.log
 *.pem
+*.key
 reports/
 *.db
 *.dump
+*.sqlite3
+*.bak
+
+# Coverage
+.coverage
+htmlcov/
