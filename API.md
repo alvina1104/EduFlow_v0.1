@@ -469,15 +469,17 @@ URL: `http://127.0.0.1:8000/contracts/4` — Response **204**. Ошибки: **4
 #### POST /payments/ (Student)
 URL: `http://127.0.0.1:8000/payments/` — создаёт платёж по своему контракту, статус `pending`.
 
+`payment_method` accepts `cash` for manual cash payments. Finik QR payments use `POST /finik/payments`.
+
 Request Body:
 ```json
-{ "contract_id": 1, "amount": "25000.00", "payment_method": "card", "payment_month": "2026-12" }
+{ "contract_id": 1, "amount": "25000.00", "payment_method": "cash", "payment_month": "2026-12" }
 ```
 Response 201:
 ```json
 {
   "id": 4, "contract_id": 1, "amount": "25000.00", "status": "pending",
-  "payment_method": "card", "created_at": "2026-10-21T12:35:00",
+  "payment_method": "cash", "created_at": "2026-10-21T12:35:00",
   "paid_at": null, "confirmed_by_admin_id": null, "payment_month": "2026-12"
 }
 ```
@@ -520,7 +522,7 @@ Response 200:
 ```json
 {
   "id": 4, "contract_id": 1, "amount": "25000.00", "status": "confirmed",
-  "payment_method": "card", "created_at": "2026-10-21T12:35:00",
+  "payment_method": "cash", "created_at": "2026-10-21T12:35:00",
   "paid_at": "2026-10-21T12:40:00", "confirmed_by_admin_id": 1, "payment_month": "2026-12"
 }
 ```
@@ -612,12 +614,12 @@ POST /payments/
 Authorization: Bearer <student_access_token>
 Content-Type: application/json
 
-{ "contract_id": 1, "amount": "25000.00", "payment_method": "card", "payment_month": "2026-12" }
+{ "contract_id": 1, "amount": "25000.00", "payment_method": "cash", "payment_month": "2026-12" }
 ```
 ```json
 {
   "id": 4, "contract_id": 1, "amount": "25000.00", "status": "pending",
-  "payment_method": "card", "created_at": "2026-10-21T12:35:00",
+  "payment_method": "cash", "created_at": "2026-10-21T12:35:00",
   "paid_at": null, "confirmed_by_admin_id": null, "payment_month": "2026-12"
 }
 ```
@@ -636,7 +638,7 @@ Content-Type: application/json
 ```json
 {
   "id": 4, "contract_id": 1, "amount": "25000.00", "status": "confirmed",
-  "payment_method": "card", "created_at": "2026-10-21T12:35:00",
+  "payment_method": "cash", "created_at": "2026-10-21T12:35:00",
   "paid_at": "2026-10-21T12:40:00", "confirmed_by_admin_id": 1, "payment_month": "2026-12"
 }
 ```

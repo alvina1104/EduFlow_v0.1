@@ -8,7 +8,7 @@ import pytest
 def payment_body(contract_factory):
     contract = contract_factory()
     return contract, {"request_id": str(uuid4()), "contract_id": contract.id,
-                      "amount": "100.00", "payment_method": "card", "payment_month": "2026-10"}
+                      "amount": "100.00", "payment_method": "cash", "payment_month": "2026-10"}
 
 
 def test_auth_login_refresh_logout_and_bad_password(client, actors):
