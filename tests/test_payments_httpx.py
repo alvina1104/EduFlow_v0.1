@@ -273,4 +273,4 @@ def test_concurrent_confirmation_serializes_and_rechecks_status(
         event.remove(test_engine, "after_cursor_execute", observe_initial_payment_read)
         edu_app.dependency_overrides.pop(get_db, None)
 
-    assert statuses == [200, 409]
+    assert sorted(statuses) == [200, 409]
