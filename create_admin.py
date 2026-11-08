@@ -49,8 +49,8 @@ with SessionLocal() as db:
     password = getpass("Введите пароль администратора: ")
     confirm_password = getpass("Повторите пароль: ")
 
-    if len(password) < 6:
-        raise SystemExit("Пароль должен содержать минимум 6 символов")
+    if not 8 <= len(password) <= 128:
+        raise SystemExit("Пароль должен содержать от 8 до 128 символов")
 
     if password != confirm_password:
         raise SystemExit("Пароли не совпадают")
