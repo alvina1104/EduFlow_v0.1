@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -7,7 +8,13 @@ from myproject.api import (auth, contracts, groups, payments, personal_info, stu
 from myproject.database.db import engine
 
 
-edu_app = FastAPI(title="EduFlow for Motion")
+production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+edu_app = FastAPI(
+    title="EduFlow for Motion",
+    docs_url=None if production else "/docs",
+    redoc_url=None if production else "/redoc",
+    openapi_url=None if production else "/openapi.json",
+)
 edu_app.include_router(auth.auth_router)
 edu_app.include_router(students.students_router)
 edu_app.include_router(personal_info.personal_info_router)

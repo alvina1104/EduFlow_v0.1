@@ -723,6 +723,13 @@ curl http://127.0.0.1:8000/health
 - Production must set `ENVIRONMENT=production` to disable Swagger, ReDoc, and
   OpenAPI routes. Do not expose backend port 8000 publicly; Compose exposes it
   only to the internal network. PostgreSQL has no published host port.
+- If production Nginx is behind an AWS load balancer, set
+  `TRUSTED_PROXY_CIDRS` to the comma-separated CIDRs of only its subnets and
+  restrict the Nginx listener to that load balancer's security group. Nginx
+  refuses production startup when this value is missing. It derives the rate
+  limit key from the real client address only after the request arrived from a
+  configured trusted proxy; arbitrary public `X-Forwarded-For` is ignored.
+  Keep this list synchronized with the actual VPC/load balancer configuration.
 - Nginx currently listens on HTTP only. Terminate TLS at a configured trusted
   load balancer/reverse proxy or add certificates and an HTTPS listener before
   public production use. HSTS must be enabled only after HTTPS is confirmed.

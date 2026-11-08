@@ -10,23 +10,21 @@ from alembic import context
 # Путь к корню проекта, чтобы импорты myproject.* работали из любого каталога
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from dotenv import load_dotenv
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(PROJECT_ROOT / ".env")
-load_dotenv(PROJECT_ROOT / "myproject" / ".env")
-
-from myproject.database.db import Base
-import myproject.database.models  # noqa: F401  (регистрация всех моделей в Base.metadata)
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# DATABASE_URL из окружения имеет приоритет над sqlalchemy.url в alembic.ini
+# Read only the process environment. Alembic must never discover a target from
+# a dotenv file or fall back to alembic.ini.
 database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+if not database_url:
+    raise RuntimeError(
+        "DATABASE_URL is required for Alembic; refusing to use a fallback database URL"
+    )
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+
+from myproject.database.db import Base
+import myproject.database.models  # noqa: F401  (регистрация всех моделей в Base.metadata)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
