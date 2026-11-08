@@ -37,8 +37,8 @@
 
 | Роль | Кто это | Что доступно |
 |---|---|---|
-| `admin` | администратор | полный CRUD: users, students, personal-info, groups, contracts; список платежей и подтверждение/отклонение |
-| `student` | студент с профилем | свои данные: `/students/me`, `/personal-info/me`, `/groups/my`, `/contracts/my`, свои платежи и баланс, создание платежа |
+| `admin` | администратор | полный CRUD: users, students, personal-info, groups, contracts; регистрация наличных и разрешение спорных Finik операций |
+| `student` | студент с профилем | свои данные: `/students/me`, `/personal-info/me`, `/groups/my`, `/contracts/my`, свои платежи и баланс; создание Finik QR |
 | неавторизованный | без токена | только `POST /auth/login`, `POST /auth/refresh`, `GET /health` |
 
 Правила доступа описываются зависимостями:
@@ -123,13 +123,17 @@
 
 | Метод | Endpoint | Доступ | Назначение |
 |---|---|---|---|
-| POST | `/payments/` | Student | Создать платёж по своему контракту |
+| POST | `/payments/` | Admin | Зарегистрировать подтверждённую оплату наличными |
 | GET | `/payments/` | Admin | Список всех платежей |
 | GET | `/payments/my` | Student | Свои платежи |
 | GET | `/payments/my/balance` | Student | Баланс по своим контрактам |
 | GET | `/payments/{payment_id}` | Авторизованный | Платёж по ID (студент — только свой) |
 | PATCH | `/payments/{payment_id}/status` | Admin | Подтвердить / отклонить платёж |
-| DELETE | `/payments/{payment_id}` | Admin | Удалить платёж |
+| DELETE | `/payments/{payment_id}` | Admin | Удаление запрещено: финансовая история сохраняется |
+| POST | `/finik/payments` | Student | Создать Finik QR платёж |
+| GET | `/finik/payments/{payment_id}` | Student | Проверить статус своего QR платежа |
+| POST | `/webhooks/finik` | Finik signature | Подтвердить успешный платёж по проверенной подписи |
+| POST | `/finik/transactions/{transaction_id}/resolve` | Admin | Ручная сверка спорной операции с доказательством |
 
 ### Health
 
@@ -466,10 +470,8 @@ URL: `http://127.0.0.1:8000/contracts/4` — Response **204**. Ошибки: **4
 
 ### Payments
 
-#### POST /payments/ (Student)
-URL: `http://127.0.0.1:8000/payments/` — создаёт платёж по своему контракту, статус `pending`.
-
-`payment_method` accepts `cash` for manual cash payments. Finik QR payments use `POST /finik/payments`.
+#### POST /payments/ (Admin, cash only)
+URL: `http://127.0.0.1:8000/payments/` — администратор регистрирует только фактически полученную наличную оплату. Студент получает **403**; Finik QR создаётся через `POST /finik/payments`.
 
 Request Body:
 ```json
@@ -478,12 +480,23 @@ Request Body:
 Response 201:
 ```json
 {
-  "id": 4, "contract_id": 1, "amount": "25000.00", "status": "pending",
-  "payment_method": "cash", "created_at": "2026-10-21T12:35:00",
-  "paid_at": null, "confirmed_by_admin_id": null, "payment_month": "2026-12"
+  "id": 4, "contract_id": 1, "amount": "25000.00", "status": "confirmed",
+  "payment_method": "cash", "created_by_user_id": 1,
+  "created_at": "2026-10-21T12:35:00", "paid_at": "2026-10-21T12:35:00",
+  "confirmed_by_admin_id": 1, "payment_month": "2026-12"
 }
 ```
-Ошибки: **400** `Сумма платежа должна быть положительной`, **401**, **403** `Профиль студента не найден`, **404** `Контракт не найден`, **422**.
+Ошибки: **401**, **403** (не Admin или чужой контракт), **404** `Контракт не найден`, **409** (недоступный месяц или превышение остатка), **422** (сумма или метод оплаты некорректен).
+
+#### POST /finik/payments (Student)
+Студент создаёт Finik QR для собственного контракта. Ответ содержит `payment_id`, `status: pending` и проверенную ссылку `payment_url`. QR и возврат по RedirectUrl не подтверждают оплату; источником подтверждения служит только проверенный webhook.
+
+```json
+{ "request_id": "550e8400-e29b-41d4-a716-446655440000", "contract_id": 1,
+  "amount": "25000.00", "payment_month": "2026-12" }
+```
+
+Повтор с тем же `request_id` возвращает ту же Finik операцию. `GET /finik/payments/{payment_id}` позволяет студенту опрашивать её статус.
 
 #### GET /payments/ (Admin)
 Response 200 — массив всех платежей.
@@ -512,7 +525,7 @@ URL: `http://127.0.0.1:8000/payments/4` — студент видит тольк
 Response 200 — объект платежа. Ошибки: **401**, **403** `Нет доступа к этому платежу`, **404** `Платёж не найден`, **422**.
 
 #### PATCH /payments/{payment_id}/status (Admin)
-URL: `http://127.0.0.1:8000/payments/4/status` — разрешены только `confirmed` и `rejected`.
+URL: `http://127.0.0.1:8000/payments/4/status` — для старых/ожидающих наличных записей разрешены только `confirmed` и `rejected`. Finik таким способом подтвердить нельзя.
 
 Request Body:
 ```json
@@ -529,9 +542,9 @@ Response 200:
 Ошибки: **400** `Подтверждённый платёж нельзя изменить` / `Можно только подтвердить или отклонить платёж` / `Сумма платежа превышает остаток контракта`, **401**, **403**, **404**, **422**.
 
 #### DELETE /payments/{payment_id} (Admin)
-URL: `http://127.0.0.1:8000/payments/4` — Response **204**.
+Платёж не удаляется, даже если он `pending` или `rejected`; используйте статус для сохранения истории.
 
-Ошибки: **400** `Подтверждённый платёж нельзя удалить`, **401**, **403**, **404**, **422**.
+Ответ: **409** `Платежи нельзя удалять из финансовой истории`, **401**, **403**, **404**.
 
 ---
 
@@ -607,44 +620,50 @@ Authorization: Bearer <student_access_token>
 ]
 ```
 
-### Сценарий 5. Создание платежа студентом
+### Сценарий 5. Создание Finik QR студентом
 
 ```http
-POST /payments/
+POST /finik/payments
 Authorization: Bearer <student_access_token>
 Content-Type: application/json
 
-{ "contract_id": 1, "amount": "25000.00", "payment_method": "cash", "payment_month": "2026-12" }
+{ "request_id": "550e8400-e29b-41d4-a716-446655440000", "contract_id": 1,
+  "amount": "25000.00", "payment_month": "2026-12" }
 ```
 ```json
 {
-  "id": 4, "contract_id": 1, "amount": "25000.00", "status": "pending",
-  "payment_method": "cash", "created_at": "2026-10-21T12:35:00",
-  "paid_at": null, "confirmed_by_admin_id": null, "payment_month": "2026-12"
+  "payment_id": 4, "status": "pending", "payment_url": "https://qr.finik/..."
 }
 ```
-Платёж создаётся со статусом `pending` и ожидает решения администратора.
+Клиент открывает `payment_url` и опрашивает `GET /finik/payments/4`. RedirectUrl и факт открытия QR не подтверждают оплату; баланс меняется после валидного webhook.
 
-### Сценарий 6. Подтверждение или отклонение платежа администратором
+### Сценарий 6. Регистрация оплаты наличными
 
-Подтверждение:
+Только Admin регистрирует наличные после фактического приёма денег. Запись сразу подтверждена и содержит `created_by_user_id`, `confirmed_by_admin_id` и `paid_at`:
 ```http
-PATCH /payments/4/status
+POST /payments/
 Authorization: Bearer <admin_access_token>
 Content-Type: application/json
 
-{ "status": "confirmed" }
+{ "request_id": "550e8400-e29b-41d4-a716-446655440000", "contract_id": 1,
+  "amount": "25000.00", "payment_method": "cash", "payment_month": "2026-12" }
 ```
 ```json
 {
   "id": 4, "contract_id": 1, "amount": "25000.00", "status": "confirmed",
-  "payment_method": "cash", "created_at": "2026-10-21T12:35:00",
-  "paid_at": "2026-10-21T12:40:00", "confirmed_by_admin_id": 1, "payment_month": "2026-12"
+  "payment_method": "cash", "created_by_user_id": 1,
+  "paid_at": "2026-10-21T12:40:00", "confirmed_by_admin_id": 1,
+  "payment_month": "2026-12"
 }
 ```
-Отклонение — тем же запросом с `{ "status": "rejected" }` (при этом `paid_at` и `confirmed_by_admin_id` остаются/сбрасываются по логике кода).
+Наличные учитываются в балансе сразу; новое cash заявление от Student отклоняется с **403**.
 
-Ограничения: подтверждённый платёж изменить нельзя; сумма подтверждаемого платежа не может превышать остаток контракта.
+Ограничения: подтверждённый платёж изменить нельзя; сумма подтверждаемого платежа не может превышать остаток контракта. Новые наличные записи через `POST /payments/` создаются сразу `confirmed`.
+
+#### POST /finik/transactions/{transaction_id}/resolve (Admin)
+Finik Web SDK документирует создание QR и успешный webhook, но не предоставляет в опубликованной документации endpoint запроса статуса операции. Поэтому введённый transaction ID сам по себе не является доказательством оплаты. `evidence_reference` — только аудиторская ссылка на запись сверки; API не проверяет её содержимое и не считает её подтверждением поступления денег. Перед ручным `confirm` Admin лично сверяет реальную операцию в Finik Business Portal или банковском settlement отчёте, сопоставляет `PaymentId`, сумму, transaction ID и фактическое зачисление средств. Admin отвечает за корректность этой сверки и подтверждения. API сохраняет администратора, время, комментарий и ссылку на запись аудита. Для `reject` также обязателен комментарий; `failed` или неизвестный webhook-статус не отклоняет платёж автоматически.
+
+Баланс контракта учитывает подтверждённые cash и Finik платежи: `remaining_amount = total_amount - SUM(confirmed.amount)`. `pending` и `rejected` не уменьшают баланс. Создание QR оставляет деньги ожидающими до webhook.
 
 ### Готовый сценарий на JavaScript
 
@@ -665,7 +684,6 @@ const student = await res.json();
 
 Для следующих возможностей в проекте **нет API endpoints** — во frontend их использовать нельзя:
 
-- **Schedules (расписание):** модель `Schedule` и схемы `ScheduleCreateSchema` / `ScheduleResponseSchema` есть, но ни одного роута нет. Управления расписанием через API не существует.
 - **Students:** нет `PUT` и `PATCH` — данные студента меняются только через `/personal-info` и `/users`.
 - **Payments:** нет `PUT` — изменение только через `PATCH /payments/{payment_id}/status`.
 - **Personal Info:** нет `DELETE /personal-info/me` — удаление доступно только администратору по `student_id`.
@@ -695,3 +713,28 @@ curl -X POST http://127.0.0.1:8000/auth/login \
 curl http://127.0.0.1:8000/users/ -H "Authorization: Bearer <access_token>"
 curl http://127.0.0.1:8000/health
 ```
+
+## Deployment safety
+
+- Alembic requires an explicit `DATABASE_URL`. It no longer falls back to
+  `localhost:5432/eduflow`; inspect the target URL and current migration heads
+  before any deployment. Apply migrations as a separate, reviewed operation,
+  never as an application-container startup side effect.
+- Production must set `ENVIRONMENT=production` to disable Swagger, ReDoc, and
+  OpenAPI routes. Do not expose backend port 8000 publicly; Compose exposes it
+  only to the internal network. PostgreSQL has no published host port.
+- Nginx currently listens on HTTP only. Terminate TLS at a configured trusted
+  load balancer/reverse proxy or add certificates and an HTTPS listener before
+  public production use. HSTS must be enabled only after HTTPS is confirmed.
+- Keep `.env`, private keys, and database dumps outside the build context and
+  backups access-controlled. No production backup/restore is run by this code.
+  Example local backup/restore (replace the container/database names first):
+
+  ```bash
+  docker compose exec -T post_db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > eduflow.dump.sql
+  docker compose exec -T post_db psql -U "$POSTGRES_USER" "$POSTGRES_DB" < eduflow.dump.sql
+  ```
+
+- Take and verify a backup before production migrations; rehearse restoring it
+  to an isolated database. The repository does not provision cloud backups or
+  configure production TLS, firewall rules, or AWS health checks.

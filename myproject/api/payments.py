@@ -48,7 +48,7 @@ def calculate_balance(contract_id: int, db: Session):
         Payment.status == PaymentStatus.CONFIRMED
     ).scalar()
 
-    remaining = max(contract.total_amount - paid, 0)
+    remaining = contract.total_amount - paid
 
     paid_months = None
     overdue_months = None
@@ -87,7 +87,7 @@ def calculate_balance(contract_id: int, db: Session):
                 overdue_months += 1
                 overdue_amount += outstanding
 
-        overdue_amount = min(overdue_amount, remaining)
+        overdue_amount = min(overdue_amount, max(remaining, Decimal("0")))
 
     return {
         "contract_id": contract.id,
@@ -117,13 +117,13 @@ def _create_payment(
     user: User,
     allow_finik: bool = False
 ):
-    if data.payment_method == "finik" and not allow_finik:
-        raise HTTPException(422, "Используйте /finik/payments")
-
-    if allow_finik and (
-        data.payment_method != "finik" or user.role != UserRole.STUDENT
-    ):
-        raise HTTPException(403, "Нет доступа")
+    if allow_finik:
+        if data.payment_method != "finik" or user.role != UserRole.STUDENT:
+            raise HTTPException(403, "Нет доступа")
+    elif user.role != UserRole.ADMIN:
+        raise HTTPException(403, "Наличные платежи регистрирует только администратор")
+    elif data.payment_method != "cash":
+        raise HTTPException(422, "Администратор может зарегистрировать только наличный платёж")
 
     contract = db.query(Contract).filter(
         Contract.id == data.contract_id
@@ -356,11 +356,4 @@ def delete_payment(
     if not payment:
         raise HTTPException(404, "Платёж не найден")
 
-    if payment.payment_method == "finik":
-        raise HTTPException(409, "Нельзя удалить платёж Finik")
-
-    if payment.status == PaymentStatus.CONFIRMED:
-        raise HTTPException(400, "Подтверждённый платёж нельзя удалить")
-
-    db.delete(payment)
-    db.commit()
+    raise HTTPException(409, "Платежи нельзя удалять из финансовой истории")

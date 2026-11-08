@@ -22,7 +22,7 @@ from myproject.database.schemas import (
     FinikTransactionResponseSchema, PaymentCreateSchema
 )
 from myproject.services.finik import (
-    ensure_config, create_finik_payment, verify_webhook
+    ensure_config, create_finik_payment, validate_payment_url, verify_webhook
 )
 from myproject.services.schedule import find_contract_period
 
@@ -31,7 +31,6 @@ finik_router = APIRouter(tags=["Finik"])
 logger = logging.getLogger(__name__)
 
 SUCCESS_STATUSES = {"success", "succeeded"}
-FAILED_STATUSES = {"error", "failed", "cancelled", "canceled", "declined", "rejected"}
 
 
 @finik_router.post("/finik/payments", status_code=201)
@@ -52,6 +51,8 @@ def create_online_payment(
 
     if not contract:
         raise HTTPException(404, "Контракт не найден")
+    if contract.status != ContractStatus.ACTIVE:
+        raise HTTPException(409, "Контракт не активен")
 
     payment_data = PaymentCreateSchema(
         request_id=data.request_id,
@@ -84,11 +85,11 @@ def create_online_payment(
             }
 
         try:
-            url = create_finik_payment(
+            url = validate_payment_url(create_finik_payment(
                 transaction.provider_payment_id,
                 payment.amount,
                 contract.id
-            )
+            ))
         except Exception:
             logger.exception(
                 "Finik payment retry failed for payment %s", payment.id
@@ -134,11 +135,11 @@ def create_online_payment(
         raise HTTPException(409, "Операция уже существует")
 
     try:
-        url = create_finik_payment(
+        url = validate_payment_url(create_finik_payment(
             transaction.provider_payment_id,
             payment.amount,
             contract.id
-        )
+        ))
     except Exception:
         logger.exception(
             "Finik payment creation failed for payment %s", payment.id
@@ -248,9 +249,6 @@ def retry_finik_transaction(
     if transaction.status in {"review", "failed", "rejected"}:
         raise HTTPException(409, "Операция требует ручного разрешения")
 
-    if transaction.payment_url:
-        return transaction
-
     payment = db.query(Payment).filter(
         Payment.id == transaction.payment_id
     ).first()
@@ -258,12 +256,19 @@ def retry_finik_transaction(
     if not payment:
         raise HTTPException(404, "Платёж не найден")
 
+    contract = db.query(Contract).filter(Contract.id == payment.contract_id).first()
+    if not contract or contract.status != ContractStatus.ACTIVE:
+        raise HTTPException(409, "Контракт не активен")
+
+    if transaction.payment_url:
+        return transaction
+
     try:
-        url = create_finik_payment(
+        url = validate_payment_url(create_finik_payment(
             transaction.provider_payment_id,
             payment.amount,
             payment.contract_id
-        )
+        ))
     except Exception:
         logger.exception(
             "Finik payment retry failed for transaction %s", transaction.id
@@ -290,26 +295,38 @@ def resolve_finik_transaction(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    transaction = db.query(FinikTransaction).filter(
+    transaction_ref = db.query(FinikTransaction).filter(
         FinikTransaction.id == transaction_id
-    ).with_for_update().first()
+    ).first()
 
-    if not transaction:
+    if not transaction_ref:
         raise HTTPException(404, "Операция Finik не найдена")
 
-    payment = db.query(Payment).filter(
-        Payment.id == transaction.payment_id
-    ).with_for_update().populate_existing().first()
+    # Lock rows in one global order (contract -> payment -> transaction).
+    # The webhook uses the same order to avoid a payment/transaction deadlock.
+    payment_ref = db.query(Payment).filter(
+        Payment.id == transaction_ref.payment_id
+    ).first()
 
-    if not payment:
+    if not payment_ref:
         raise HTTPException(404, "Платёж не найден")
 
     contract = db.query(Contract).filter(
-        Contract.id == payment.contract_id
-    ).with_for_update().first()
+        Contract.id == payment_ref.contract_id
+    ).populate_existing().with_for_update().first()
 
     if not contract:
         raise HTTPException(404, "Контракт не найден")
+
+    payment = db.query(Payment).filter(
+        Payment.id == payment_ref.id
+    ).populate_existing().with_for_update().first()
+    transaction = db.query(FinikTransaction).filter(
+        FinikTransaction.id == transaction_ref.id
+    ).populate_existing().with_for_update().first()
+
+    if not payment or not transaction:
+        raise HTTPException(404, "Операция оплаты не найдена")
 
     now = datetime.utcnow()
 
@@ -321,6 +338,9 @@ def resolve_finik_transaction(
             "review", "unknown", "sending", "ready", "failed"
         }:
             raise HTTPException(409, "Операцию нельзя подтвердить")
+
+        if not data.evidence_reference or not data.evidence_reference.strip():
+            raise HTTPException(422, "Укажите ссылку на доказательство сверки в Finik")
 
         if payment.status not in (PaymentStatus.PENDING, PaymentStatus.REJECTED):
             raise HTTPException(409, "Платёж уже обработан")
@@ -377,9 +397,17 @@ def resolve_finik_transaction(
 
     transaction.resolved_by_admin_id = admin.id
     transaction.resolved_at = now
-    transaction.admin_comment = data.comment
+    evidence = (
+        f"evidence={data.evidence_reference.strip()}; "
+        if data.evidence_reference else ""
+    )
+    transaction.admin_comment = f"{evidence}{data.comment.strip()}"
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Transaction ID уже связан с другой операцией Finik")
     db.refresh(transaction)
 
     return transaction
@@ -403,117 +431,101 @@ async def finik_webhook(
     if not verify_webhook(dict(request.headers), body, request.url.path):
         raise HTTPException(401, "Неверная подпись Finik")
 
-    status_value = str(body.get("status", "")).lower()
+    status_value = str(body.get("status", "")).strip().lower()
 
-    if status_value not in SUCCESS_STATUSES | FAILED_STATUSES:
+    # Current Finik Web SDK documents callbacks only for successful payments.
+    # An undocumented failure value must never reject a payment or release funds.
+    if status_value not in SUCCESS_STATUSES:
         return {"status": "ignored"}
 
     fields = body.get("fields")
     provider_payment_id = fields.get("paymentId") if isinstance(fields, dict) else None
     transaction_id = body.get("transactionId")
 
-    if not provider_payment_id:
+    if not isinstance(provider_payment_id, str) or not provider_payment_id:
         raise HTTPException(422, "Нет Payment ID Finik")
 
-    transaction = db.query(FinikTransaction).filter(
+    transaction_ref = db.query(FinikTransaction).filter(
         FinikTransaction.provider_payment_id == provider_payment_id
     ).first()
 
-    if not transaction:
+    if not transaction_ref:
         raise HTTPException(404, "Операция не найдена")
 
-    payment = db.query(Payment).filter(
-        Payment.id == transaction.payment_id
+    payment_ref = db.query(Payment).filter(
+        Payment.id == transaction_ref.payment_id
     ).first()
 
-    if not payment:
+    if not payment_ref:
         raise HTTPException(404, "Платёж не найден")
 
     contract = db.query(Contract).filter(
-        Contract.id == payment.contract_id
-    ).with_for_update().first()
+        Contract.id == payment_ref.contract_id
+    ).populate_existing().with_for_update().first()
 
     if not contract:
         raise HTTPException(404, "Контракт не найден")
 
     payment = db.query(Payment).filter(
-        Payment.id == payment.id
-    ).with_for_update().populate_existing().first()
+        Payment.id == payment_ref.id
+    ).populate_existing().with_for_update().first()
 
     transaction = db.query(FinikTransaction).filter(
-        FinikTransaction.id == transaction.id
-    ).with_for_update().populate_existing().first()
+        FinikTransaction.id == transaction_ref.id
+    ).populate_existing().with_for_update().first()
 
-    if transaction.status == "confirmed":
-        if (
-            transaction_id
-            and transaction.provider_transaction_id
-            and transaction.provider_transaction_id != str(transaction_id)
-        ):
-            raise HTTPException(409, "Другой Transaction ID")
-        return {"status": "duplicate"}
-
-    if transaction.status == "review" and status_value in FAILED_STATUSES:
-        return {"status": "review"}
-
-    if status_value in FAILED_STATUSES:
-        if (
-            transaction_id
-            and transaction.provider_transaction_id
-            and transaction.provider_transaction_id != str(transaction_id)
-        ):
-            raise HTTPException(409, "Конфликт транзакций")
-
-        if transaction.status in {"failed", "rejected"}:
-            return {"status": transaction.status}
-
-        if transaction_id and not transaction.provider_transaction_id:
-            transaction.provider_transaction_id = str(transaction_id)
-
-        transaction.provider_operation_id = str(body.get("id", "")) or None
-        transaction.status = "failed"
-        transaction.payment_url = None
-        transaction.review_reason = f"provider_{status_value}"
-
-        if payment.status == PaymentStatus.PENDING:
-            payment.status = PaymentStatus.REJECTED
-            payment.paid_at = None
-
-        db.commit()
-        logger.warning(
-            "Finik webhook reported %s for payment %s",
-            status_value, payment.id
-        )
-        return {"status": "failed"}
+    if not payment or not transaction:
+        raise HTTPException(404, "Операция оплаты не найдена")
 
     if not transaction_id:
         raise HTTPException(422, "Нет Transaction ID Finik")
+    if not isinstance(transaction_id, str) or len(transaction_id) > 150:
+        raise HTTPException(422, "Неверный Transaction ID Finik")
 
     if (
         transaction.provider_transaction_id
-        and transaction.provider_transaction_id != str(transaction_id)
+        and transaction.provider_transaction_id != transaction_id
     ):
         raise HTTPException(409, "Конфликт транзакций")
 
-    if transaction.status == "review":
-        return {"status": "review"}
-
-    if transaction.status in {"failed", "rejected"}:
-        transaction.status = "review"
-        transaction.review_reason = "late_success"
-        db.commit()
-        return {"status": "review"}
-
+    fields_amount = fields.get("amount")
     try:
         amount = Decimal(str(body["amount"]))
+        if fields_amount is None:
+            raise InvalidOperation
+        form_amount = Decimal(str(fields_amount))
     except (KeyError, InvalidOperation, TypeError):
         raise HTTPException(422, "Неверная сумма")
 
-    if not amount.is_finite() or amount <= 0:
+    if (
+        not amount.is_finite() or amount <= 0
+        or not form_amount.is_finite() or form_amount <= 0
+    ):
         raise HTTPException(422, "Неверная сумма")
 
-    transaction.provider_transaction_id = str(transaction_id)
+    if transaction.status == "confirmed":
+        if payment.status != PaymentStatus.CONFIRMED or payment.amount != amount or payment.amount != form_amount:
+            raise HTTPException(409, "Конфликт данных подтверждённой транзакции")
+        return {"status": "duplicate"}
+
+    transaction.provider_transaction_id = transaction_id
     transaction.provider_operation_id = str(body.get("id", "")) or None
+
+    if transaction.status == "review":
+        if payment.amount != amount or payment.amount != form_amount:
+            transaction.review_reason = "amount_mismatch"
+        db.commit()
+        return {"status": "review"}
+
+    if transaction.status in {"failed", "rejected"} or payment.status == PaymentStatus.REJECTED:
+        transaction.status = "review"
+        transaction.review_reason = (
+            "late_success_amount_mismatch"
+            if payment.amount != amount or payment.amount != form_amount
+            else "late_success"
+        )
+        db.commit()
+        return {"status": "review"}
 
     reasons = []
 
@@ -522,6 +534,9 @@ async def finik_webhook(
 
     if payment.amount != amount:
         reasons.append("amount_mismatch")
+
+    if payment.amount != form_amount or form_amount != amount:
+        reasons.append("form_amount_mismatch")
 
     if contract.status != ContractStatus.ACTIVE:
         reasons.append("contract_inactive")

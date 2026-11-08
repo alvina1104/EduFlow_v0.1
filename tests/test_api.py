@@ -18,6 +18,8 @@ def test_auth_login_refresh_logout_and_bad_password(client, actors):
     token = login.json()
     refreshed = client.post("/auth/refresh", json={"refresh_token": token["refresh_token"]})
     assert refreshed.status_code == 200
+    replay = client.post("/auth/refresh", json={"refresh_token": token["refresh_token"]})
+    assert replay.status_code == 401
     logout = client.post("/auth/logout", json={"refresh_token": refreshed.json()["refresh_token"]},
                          headers={"Authorization": f"Bearer {refreshed.json()['access_token']}"})
     assert logout.status_code == 200
@@ -105,36 +107,43 @@ def test_contract_creation_variants_payment_day_and_delete_guard(client, actors,
     assert client.post("/contracts/", headers=auth_headers(actors["admin"]), json={**payload,
                            "total_amount": "900.00", "duration_months": 6, "payment_day": None}).status_code == 201
     contract = contract_factory()
-    body = {"request_id": str(uuid4()), "contract_id": contract.id, "amount": "10.00", "payment_month": "2026-10"}
-    assert client.post("/payments/", headers=auth_headers(actors["student_user"]), json=body).status_code == 201
+    body = {"request_id": str(uuid4()), "contract_id": contract.id, "amount": "10.00",
+            "payment_method": "cash", "payment_month": "2026-10"}
+    assert client.post("/payments/", headers=auth_headers(actors["admin"]), json=body).status_code == 201
     assert client.delete(f"/contracts/{contract.id}", headers=auth_headers(actors["admin"])).status_code == 409
 
 
 def test_payment_idempotency_confirmation_rejection_balance_and_limits(
-    client, actors, auth_headers, payment_body
+    client, actors, auth_headers, payment_body, db_session
 ):
+    from decimal import Decimal
+    from myproject.database.models import Payment, PaymentStatus
+
     contract, body = payment_body
     student_headers = auth_headers(actors["student_user"])
     admin_headers = auth_headers(actors["admin"])
-    created = client.post("/payments/", headers=student_headers, json=body)
+    created = client.post("/payments/", headers=admin_headers, json=body)
     assert created.status_code == 201
-    duplicate = client.post("/payments/", headers=student_headers, json=body)
+    assert created.json()["status"] == "confirmed"
+    duplicate = client.post("/payments/", headers=admin_headers, json=body)
     assert duplicate.status_code == 201
     assert duplicate.json()["id"] == created.json()["id"]
     payment_id = created.json()["id"]
-    confirmed = client.patch(f"/payments/{payment_id}/status", headers=admin_headers,
-                             json={"status": "confirmed"})
-    assert confirmed.status_code == 200
+    assert client.post("/payments/", headers=student_headers, json=body).status_code == 403
     assert client.patch(f"/payments/{payment_id}/status", headers=admin_headers,
                         json={"status": "confirmed"}).status_code == 409
     balance = client.get("/payments/my/balance", headers=student_headers)
     assert balance.status_code == 200
     assert balance.json()[0]["remaining_amount"] == pytest.approx(900.0)
 
-    rejected_body = {**body, "request_id": str(uuid4()), "amount": "50.00", "payment_month": "2026-09"}
-    rejected = client.post("/payments/", headers=student_headers, json=rejected_body)
-    assert rejected.status_code == 201
-    assert client.patch(f"/payments/{rejected.json()['id']}/status", headers=admin_headers,
+    legacy_pending = Payment(
+        contract_id=contract.id, amount=Decimal("50.00"), status=PaymentStatus.PENDING,
+        payment_method="cash", payment_month="2026-09", request_id=str(uuid4()),
+        created_by_user_id=actors["student_user"].id,
+    )
+    db_session.add(legacy_pending)
+    db_session.flush()
+    assert client.patch(f"/payments/{legacy_pending.id}/status", headers=admin_headers,
                         json={"status": "rejected"}).status_code == 200
 
     excessive = {**body, "request_id": str(uuid4()), "amount": "1001.00"}
