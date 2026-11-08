@@ -22,6 +22,28 @@ FINIK_HOSTS = {
 }
 
 
+def validate_payment_url(url: str) -> str:
+    """Accept only the official hosted Finik payment page URL."""
+    try:
+        parsed = urlsplit(url)
+        valid = (
+            parsed.scheme == "https"
+            and parsed.hostname == "qr.finik"
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.port in (None, 443)
+            and parsed.path.startswith("/")
+            and bool(parsed.path.strip("/"))
+            and not parsed.fragment
+        )
+    except (TypeError, ValueError):
+        valid = False
+
+    if not valid:
+        raise ValueError("Finik returned an invalid payment URL")
+    return url
+
+
 def ensure_config():
     if (
         FINIK_ENV not in FINIK_HOSTS
@@ -143,7 +165,7 @@ def create_finik_payment(payment_id: str, amount, contract_id: int) -> str:
 
     url = response.headers.get("location", "")
 
-    if response.status_code != 302 or urlsplit(url).scheme != "https":
+    if response.status_code != 302:
         raise ValueError(f"Finik HTTP {response.status_code}")
 
-    return url
+    return validate_payment_url(url)

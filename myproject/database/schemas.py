@@ -18,8 +18,8 @@ class UserCreateSchema(BaseModel):
 
 
 class UserLoginSchema(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=50)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class UserUpdateSchema(BaseModel):
@@ -244,7 +244,18 @@ class FinikPaymentCreateSchema(BaseModel):
 class FinikResolveSchema(BaseModel):
     action: Literal["confirm", "reject"]
     provider_transaction_id: str | None = Field(default=None, max_length=150)
-    comment: str | None = Field(default=None, max_length=500)
+    comment: str | None = Field(default=None, max_length=300)
+    evidence_reference: str | None = Field(default=None, max_length=150)
+
+    @model_validator(mode="after")
+    def require_resolution_audit(self):
+        if not self.comment or not self.comment.strip():
+            raise ValueError("Укажите комментарий к ручной сверке")
+        if self.action == "confirm" and (
+            not self.evidence_reference or not self.evidence_reference.strip()
+        ):
+            raise ValueError("Для подтверждения укажите ссылку на доказательство сверки")
+        return self
 
 
 class FinikTransactionResponseSchema(BaseSchema):
