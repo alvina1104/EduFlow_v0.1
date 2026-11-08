@@ -17,7 +17,7 @@ def _body(contract, **overrides):
         "request_id": str(uuid4()),
         "contract_id": contract.id,
         "amount": "100.00",
-        "payment_method": "card",
+        "payment_method": "cash",
         "payment_month": "2026-10",
         **overrides,
     }
@@ -35,6 +35,15 @@ def test_student_and_admin_payment_creation(client, actors, auth_headers, contra
     assert admin_response.status_code == 201
     assert admin_response.json()["status"] == "confirmed"
     assert admin_response.json()["confirmed_by_admin_id"] == actors["admin"].id
+
+
+def test_card_payment_method_is_rejected(client, actors, auth_headers, contract_factory):
+    contract = contract_factory()
+    response = client.post(
+        "/payments/", headers=auth_headers(actors["student_user"]),
+        json=_body(contract, payment_method="card")
+    )
+    assert response.status_code == 422
 
 
 def test_paid_month_rejected_but_partial_month_can_be_completed(client, actors, auth_headers, contract_factory):
@@ -264,4 +273,4 @@ def test_concurrent_confirmation_serializes_and_rechecks_status(
         event.remove(test_engine, "after_cursor_execute", observe_initial_payment_read)
         edu_app.dependency_overrides.pop(get_db, None)
 
-    assert statuses == [200, 409]
+    assert sorted(statuses) == [200, 409]

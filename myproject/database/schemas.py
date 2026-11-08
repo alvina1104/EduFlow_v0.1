@@ -193,7 +193,7 @@ class PaymentCreateSchema(BaseModel):
     request_id: UUID4
     contract_id: int = Field(gt=0)
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
-    payment_method: str | None = Field(default=None, max_length=50)
+    payment_method: Literal["finik", "cash"] | None = None
     payment_month: str | None = Field(
         default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"
     )
