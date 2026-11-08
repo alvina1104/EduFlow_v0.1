@@ -46,7 +46,7 @@ def refresh(data: RefreshTokenRequestSchema, db: Session = Depends(get_db)):
         RefreshToken.user_id == user_id,
         RefreshToken.token_hash == token_hash,
         RefreshToken.revoked_at.is_(None)
-    ).first()
+    ).populate_existing().with_for_update().first()
 
     if not token_db or token_db.expires_at <= datetime.utcnow():
         raise HTTPException(401, "Refresh-токен недействителен или истёк")

@@ -42,13 +42,26 @@ def create_schedule(data: ScheduleCreateSchema, db: Session = Depends(get_db), a
 
 @schedules_router.put("/{schedule_id}", response_model=ScheduleResponseSchema)
 def update_schedule(schedule_id: int, data: ScheduleCreateSchema, db: Session = Depends(get_db), admin: User = Depends(get_current_admin)):
-    schedule = db.query(Schedule).filter(Schedule.id == schedule_id).with_for_update().first()
+    schedule_ref = db.query(Schedule).filter(Schedule.id == schedule_id).first()
+    if not schedule_ref:
+        raise HTTPException(404, "Расписание не найдено")
+    old_group_id = schedule_ref.group_id
+
+    # Lock old/target groups in a stable order before the schedule row.
+    group_ids = sorted({old_group_id, data.group_id})
+    groups = db.query(Group).filter(Group.id.in_(group_ids)).order_by(
+        Group.id
+    ).with_for_update().all()
+    if len(groups) != len(group_ids):
+        raise HTTPException(404, "Группа не найдена")
+
+    schedule = db.query(Schedule).filter(
+        Schedule.id == schedule_id
+    ).populate_existing().with_for_update().first()
     if not schedule:
         raise HTTPException(404, "Расписание не найдено")
-
-    group = db.query(Group).filter(Group.id == data.group_id).with_for_update().first()
-    if not group:
-        raise HTTPException(404, "Группа не найдена")
+    if schedule.group_id != old_group_id:
+        raise HTTPException(409, "Расписание одновременно изменено; повторите запрос")
     if check_schedule_conflict(db, data, exclude_id=schedule_id):
         raise HTTPException(409, "У группы уже есть занятие в это время")
 
