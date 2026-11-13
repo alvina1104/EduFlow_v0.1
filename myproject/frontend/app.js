@@ -133,6 +133,7 @@ function loginView(){
         +'<div class="form-error" id="login-error" role="alert" aria-live="polite"></div>'
         +'<button class="btn wide login-submit-btn" id="login-submit" type="submit">Войти '+ico("arrow")+'</button>'
       +'</form>'
+      +'<a class="demo-preview-link" href="/app/preview.html">Посмотреть интерфейс <span>Демо, без реальных данных</span></a>'
     +'</section>'
     +'<footer class="login-copyright">EduFlow · Motion Web Academy</footer>'
     +'</div></div>';
