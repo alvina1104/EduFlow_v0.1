@@ -117,11 +117,14 @@ def calculate_balance(contract_id: int, db: Session):
 
 
 def get_month_paid(contract_id: int, payment_month: str, db: Session):
-    return db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
-        Payment.contract_id == contract_id,
-        Payment.payment_month == payment_month,
-        Payment.status == PaymentStatus.CONFIRMED
-    ).scalar()
+    """Учитывает multi-month allocations и старые записи."""
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        raise HTTPException(404, "Контракт не найден")
+    period = find_contract_period(contract, payment_month)
+    if period is None:
+        return Decimal("0")
+    return confirmed_by_period(contract, db).get(period.index, Decimal("0"))
 
 
 def _create_payment(
@@ -170,7 +173,10 @@ def _create_payment(
             or payment.contract_id != data.contract_id
             or payment.amount != data.amount
             or payment.payment_method != data.payment_method
-            or payment.payment_month != payment_month
+            or (data.payment_month is not None and payment.payment_month != data.payment_month
+                and contract.type == ContractType.ACADEMY)
+            or (contract.type == ContractType.COLLEGE
+                and payment.payment_month != payment_month)
         ):
             raise HTTPException(409, "Этот request_id уже используется")
 
