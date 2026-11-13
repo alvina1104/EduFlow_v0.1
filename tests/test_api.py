@@ -8,7 +8,7 @@ import pytest
 def payment_body(contract_factory):
     contract = contract_factory()
     return contract, {"request_id": str(uuid4()), "contract_id": contract.id,
-                      "amount": "100.00", "payment_method": "cash", "payment_month": "2026-10"}
+                      "amount": "100.00", "payment_method": "cash", "payment_month": "2026-01"}
 
 
 def test_auth_login_refresh_logout_and_bad_password(client, actors):
@@ -221,7 +221,7 @@ def test_contract_creation_variants_payment_day_and_delete_guard(client, actors,
                            "total_amount": "900.00", "duration_months": 6, "payment_day": None}).status_code == 201
     contract = contract_factory()
     body = {"request_id": str(uuid4()), "contract_id": contract.id, "amount": "10.00",
-            "payment_method": "cash", "payment_month": "2026-10"}
+            "payment_method": "cash", "payment_month": "2026-01"}
     assert client.post("/payments/", headers=auth_headers(actors["admin"]), json=body).status_code == 201
     assert client.delete(f"/contracts/{contract.id}", headers=auth_headers(actors["admin"])).status_code == 409
 
