@@ -6,6 +6,7 @@ on:
       - feature/finik-confirmation-receipts
       - feature/frontend-login-ui-fix
       - feature/frontend-clean-campus-design
+      - fix/login-diagnostics-remove-tag
   workflow_dispatch:
 
 permissions:
@@ -65,6 +66,9 @@ jobs:
 
       - name: Apply Alembic migrations to isolated database
         run: alembic upgrade head
+
+      - name: Verify local auth diagnostic syntax
+        run: python -m py_compile diagnose_local_login.py
 
       - name: Verify frontend JavaScript syntax
         run: node --check myproject/frontend/app.js

@@ -71,7 +71,7 @@ function layout(){return '<div class="layout" id="layout">'+sidebar()+'<main cla
 function loginView(){
   return '<div class="login">' +
     '<section class="login-brand-side">' +
-      '<div class="brand-header-login">' + brand() + '<span class="academy-tag">Платформа для обучения</span></div>' +
+      '<div class="brand-header-login">' + brand() + '</div>' +
       '<div class="login-hero">' +
         '<div class="login-art" aria-hidden="true">' + logo() + '</div>' +
         '<div class="hero-kicker">EDUFLOW · EDUCATION PLATFORM</div>' +
