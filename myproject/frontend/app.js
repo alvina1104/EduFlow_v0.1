@@ -4,7 +4,7 @@
 var app=document.getElementById("app");
 var COLORS=["violet","blue","cyan","green","orange","pink"];
 var state={token:null,refresh:null,user:null,students:[],groups:[],contracts:[],payments:[],profile:null,study:null,balances:[],loadError:null,view:"dashboard",selected:null,photoUrl:null,ready:false,loading:false};
-var pref={theme:localStorage.getItem("eduflow.theme")==="dark"?"dark":"light",accent:COLORS.includes(localStorage.getItem("eduflow.accent"))?localStorage.getItem("eduflow.accent"):"blue"};
+var pref={theme:localStorage.getItem("eduflow.theme")==="light"?"light":"dark",accent:COLORS.includes(localStorage.getItem("eduflow.accent"))?localStorage.getItem("eduflow.accent"):"violet"};
 function el(id){return document.getElementById(id)}
 function ico(name){return '<svg aria-hidden="true"><use href="#i-'+name+'"></use></svg>'}
 function escapeHtml(t){return String(t==null?"":t).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -39,14 +39,66 @@ function contractBalance(c){var b=state.balances.find(function(b){return b.contr
 function groupOfStudent(s){return findGroup(s&&s.group_id)}
 function navBtn(name,label,icon){return '<button class="nav-link '+(state.view===name?"active":"")+'" data-go="'+name+'">'+ico(icon)+'<span>'+label+'</span></button>'}
 function sidebar(){return '<aside class="sidebar"><div class="brand-header">'+brand()+'<div class="brand-caption">EduFlow learning platform</div></div><nav class="nav" aria-label="Навигация">'+navBtn("dashboard","Главная","home")+(isAdmin()?navBtn("students","Студенты","users")+navBtn("groups","Группы","grid"):"")+navBtn("contracts","Контракты","doc")+navBtn("payments","Платежи","wallet")+navBtn("schedule","Расписание","calendar")+(!isAdmin()?navBtn("grades","Оценки / Табель","graduation")+navBtn("profile","Мой профиль","user"):"")+navBtn("settings","Настройки","settings")+'</nav><div class="sidebar-bottom"><a class="nav-link" href="https://portalmotionweb.com/#/my-grades" target="_blank" rel="noopener noreferrer">'+ico("link")+'Открыть Tabel</a><button class="nav-link" data-action="logout">'+ico("logout")+'Выйти</button></div></aside>'}
-function topbar(){return '<header class="topbar"><button class="icon-btn mobile-open" data-action="menu" aria-label="Открыть меню">'+ico("menu")+'</button><div class="top-name"><strong>EduFlow <span class="accent-text">/</span> Motion Web</strong><span class="muted small">'+(isAdmin()?"Панель администратора":"Кабинет студента")+'</span></div><div class="top-tools">'+(isAdmin()?'<label class="searchbox">'+ico("search")+'<input id="top-search" type="search" placeholder="Поиск студентов..." aria-label="Поиск студентов"></label>':"")+'<button class="icon-btn" data-go="settings" title="Цвет и тема">'+ico(pref.theme==="dark"?"moon":"sun")+'</button><div class="identity"><span class="avatar">'+safe((state.user.username||"U").slice(0,1).toUpperCase())+'</span><span>'+safe(state.user.username)+'</span></div></div></header>'}
+function topbar(){return '<header class="topbar"><button class="icon-btn mobile-open" data-action="menu" aria-label="Открыть меню">'+ico("menu")+'</button><div class="top-name"><strong>'+(isAdmin()?"Главная":"Личный кабинет")+'</strong><span class="muted small">'+(isAdmin()?"Администрирование":"Моё обучение")+'</span></div><div class="top-tools">'+(isAdmin()?'<label class="searchbox">'+ico("search")+'<input id="top-search" type="search" placeholder="Поиск студентов..." aria-label="Поиск студентов"></label>':"")+'<button class="icon-btn" data-go="settings" title="Оформление">'+ico(pref.theme==="dark"?"moon":"sun")+'</button><div class="identity"><span class="avatar">'+safe((state.user.username||"U").slice(0,2).toUpperCase())+'</span><span>'+safe(state.user.username)+'</span></div></div></header>'}
 function heading(title,description,action){return '<div class="headline"><div><h1>'+safe(title)+'</h1><p>'+safe(description||"")+'</p></div>'+(action||"")+'</div>'}
 function empty(title,description){return '<div class="empty">'+ico("info")+'<strong>'+safe(title)+'</strong><div>'+safe(description||"")+'</div></div>'}
 function action(text,go,secondary){return '<button class="btn '+(secondary?"secondary":"")+'" data-go="'+go+'">'+safe(text)+ico("arrow")+'</button>'}
 function row(title,subtitle,end){return '<div class="tile"><div><strong>'+safe(title)+'</strong><span class="muted">'+safe(subtitle||"")+'</span></div>'+(end||"")+'</div>'}
 function card(title,inner,extra){return '<section class="card"><div class="card-head"><h2>'+safe(title)+'</h2>'+(extra||"")+'</div>'+inner+'</section>'}
-function adminDashboard(){var confirmed=state.payments.filter(function(p){return p.status==="confirmed"});var paid=confirmed.reduce(function(a,p){return a+Number(p.amount)},0);var balance=state.contracts.reduce(function(a,c){return a+Number(c.total_amount)-paymentPaid(c)},0);
-var latest=state.students.slice(-5).reverse();return '<section class="card hero"><div class="hero-content"><div class="hero-kicker">Motion Web Academy</div><h1>Управляйте обучением с EduFlow</h1><p>Студенты, группы, контракты и платежи — всё в одной удобной системе.</p></div></section><div class="kpis">'+kpi("Студенты",state.students.length,"users","Все зарегистрированные")+kpi("Группы",state.groups.length,"grid","Учебные группы")+kpi("Контракты",state.contracts.length,"doc","Всего контрактов")+kpi("Оплачено",formatMoney(paid),"wallet","Остаток: "+formatMoney(balance))+'</div><div class="cols-2">'+card("Студенты",latest.length?latest.map(function(s){return row(studentName(s),(groupOfStudent(s)||{}).name||"Без группы",'<button class="link" data-student="'+s.id+'">Подробнее '+ico("arrow")+'</button>')}).join(""):empty("Студентов пока нет","Добавьте студентов через API или административный интерфейс."),action("Все студенты","students",true))+card("Группы",state.groups.length?state.groups.slice(0,5).map(function(g){return row(g.name,g.course_name+' · '+countInGroup(g.id)+' студентов','<button class="link" data-group="'+g.id+'">Открыть '+ico("arrow")+'</button>')}).join(""):empty("Нет групп","Группы появятся здесь после создания."),action("Все группы","groups",true))+'</div>'}
+function dashboardIntro(title,description){
+  var now=new Intl.DateTimeFormat("ru-RU",{timeZone:"Asia/Bishkek",weekday:"long",day:"numeric",month:"long"}).format(new Date());
+  return '<header class="dashboard-intro"><div><span class="dashboard-date">'+safe(now)+'</span><h1>'+safe(title)+'</h1><p>'+safe(description||"")+'</p></div></header>';
+}
+function dashboardMetric(label,value,detail,icon,go){
+  return '<button type="button" class="dashboard-metric" data-go="'+go+'"><span class="metric-icon">'+ico(icon)+'</span><span class="metric-copy"><strong>'+safe(label)+'</strong><span>'+safe(detail)+'</span></span><span class="metric-value">'+safe(value)+'</span>'+ico("arrow")+'</button>';
+}
+function adminDashboard(){
+  var pending=state.payments.filter(function(p){return p.status==="pending"});
+  var confirmed=state.payments.filter(function(p){return p.status==="confirmed"});
+  var rejected=state.payments.filter(function(p){return p.status==="rejected"});
+  var paid=confirmed.reduce(function(a,p){return a+Number(p.amount)},0);
+  var pendingSum=pending.reduce(function(a,p){return a+Number(p.amount)},0);
+  var activeContracts=state.contracts.filter(function(c){return c.status==="active"}).length;
+  var recent=pending.slice().reverse().slice(0,5);
+  var rows=recent.length?'<div class="table-wrap"><table class="table"><thead><tr><th>Студент</th><th>Месяц</th><th>Сумма</th><th>Дата</th><th>Статус</th></tr></thead><tbody>'+recent.map(function(p){
+    var c=state.contracts.find(function(c){return c.id===p.contract_id});
+    var student=c?findStudent(c.student_id):null;
+    return '<tr><td>'+safe(student?studentName(student):"Контракт #"+p.contract_id)+'</td><td>'+safe(p.payment_month||"—")+'</td><td>'+formatMoney(p.amount)+'</td><td>'+formatDateTime(p.created_at)+'</td><td>'+statusTag(p.status)+'</td></tr>';
+  }).join("")+'</tbody></table></div>':empty("Нет платежей на проверке","Новые платежи появятся здесь автоматически.");
+  return dashboardIntro("Добрый день, "+state.user.username,"Панель управления академией")
+  +'<div class="dashboard-finance">'
+  +'<section class="card dashboard-feature"><div class="feature-heading"><span>ТРЕБУЮТ ПРОВЕРКИ</span>'+ico("wallet")+'</div><div class="feature-number">'+pending.length+'<small> платежей</small></div><div class="feature-foot">На сумму '+formatMoney(pendingSum)+'</div><button class="btn feature-action" data-go="payments">Перейти к платежам '+ico("arrow")+'</button></section>'
+  +'<section class="card dashboard-stat"><div class="stat-label">Подтверждено оплат</div><div class="stat-number">'+formatMoney(paid)+'</div><p>'+activeContracts+' активных контрактов</p><span class="stat-bottom">'+ico("check")+' Подтверждённые операции</span></section>'
+  +'<section class="card dashboard-stat"><div class="stat-label">Все платежи</div><div class="stat-number">'+state.payments.length+'</div><p>'+confirmed.length+' подтверждено · '+pending.length+' на проверке</p><div class="status-bars"><i style="width:'+(state.payments.length?100*confirmed.length/state.payments.length:0)+'%"></i><i style="width:'+(state.payments.length?100*pending.length/state.payments.length:0)+'%"></i><i style="width:'+(state.payments.length?100*rejected.length/state.payments.length:0)+'%"></i></div></section>'
+  +'</div>'
+  +'<div class="dashboard-metrics">'
+  +dashboardMetric("Студенты",state.students.length,"В системе","users","students")
+  +dashboardMetric("Группы",state.groups.length,"Учебные группы","grid","groups")
+  +dashboardMetric("Контракты",activeContracts,"Активные","doc","contracts")
+  +dashboardMetric("Платежи",state.payments.length,"Всего операций","wallet","payments")
+  +'</div>'
+  +'<section class="card dashboard-table"><div class="card-head"><h2>Новые платежи на проверке</h2><button class="link" data-go="payments">Все платежи '+ico("arrow")+'</button></div>'+rows+'</section>';
+}
+function studentDashboard(){
+  var s=myStudent(),g=groupOfStudent(s);
+  var balance=state.balances.reduce(function(a,b){return a+Number(b.remaining_amount)},0);
+  var confirmed=state.payments.filter(function(p){return p.status==="confirmed"});
+  var avg=state.study&&state.study.average_grade!=null?state.study.average_grade:"—";
+  var lessons=g&&g.schedules?g.schedules:[];
+  var schedule=lessons.length?lessons.slice(0,5).map(function(sc){
+    return row(sc.title,weekday(sc.weekday),'<span class="pill">'+safe(sc.start_time.slice(0,5))+'–'+safe(sc.end_time.slice(0,5))+'</span>');
+  }).join(""):empty("Расписания пока нет","Занятия появятся после назначения группы.");
+  return dashboardIntro("Здравствуйте, "+studentName(s),"Ваши занятия, контракты и платежи")
+    +'<div class="dashboard-metrics student-metrics">'
+    +dashboardMetric("Моя группа",g?g.name:"—",g?g.course_name:"Группа не назначена","grid","schedule")
+    +dashboardMetric("Контракты",state.contracts.length,"Мои договоры","doc","contracts")
+    +dashboardMetric("Оплачено",confirmed.length,"Подтверждённых платежей","wallet","payments")
+    +dashboardMetric("Средняя оценка",avg,"Успеваемость","graduation","grades")
+    +'</div>'
+    +'<div class="student-overview"><section class="card balance-panel"><span class="stat-label">Остаток по контрактам</span><div class="stat-number">'+formatMoney(balance)+'</div><p>По данным подтверждённых платежей</p><button class="btn secondary" data-go="contracts">Мои контракты '+ico("arrow")+'</button></section>'
+    +card("Расписание",schedule,'<button class="link" data-go="schedule">Открыть '+ico("arrow")+'</button>')
+    +'</div>';
+}
 function kpi(label,value,icon,note){return '<div class="card kpi accent-card"><div class="kpi-label">'+ico(icon)+safe(label)+'</div><div class="kpi-value">'+safe(value)+'</div><small>'+safe(note||"")+'</small></div>'}
 function studentDashboard(){var s=myStudent(),g=groupOfStudent(s),bal=state.balances.reduce(function(a,b){return a+Number(b.remaining_amount)},0);var avg=state.study&&state.study.average_grade?state.study.average_grade:"—";var percentage=state.study&&state.study.progress_percent!=null?Number(state.study.progress_percent):null;return '<section class="card hero"><div class="hero-content"><div class="hero-kicker">Добро пожаловать</div><h1>'+safe(studentName(s))+' 👋</h1><p>Ваше обучение, успеваемость и финансовая информация в одном кабинете.</p></div></section><div class="kpis">'+kpi("Моя группа",g?g.name:"—","grid","Текущая учебная группа")+kpi("Средняя оценка",avg,"graduation","Из системы Tabel, если подключена")+kpi("Прогресс",percentage===null?"—":percentage+"%","chart","По учебному порталу")+kpi("Остаток по контрактам",formatMoney(bal),"wallet","По данным подтверждённых платежей")+'</div><div class="cols-2">'+card("Расписание группы",g&&g.schedules&&g.schedules.length?g.schedules.slice(0,5).map(function(sc){return row(sc.title,weekday(sc.weekday),'<span class="pill">'+safe(sc.start_time.slice(0,5))+' — '+safe(sc.end_time.slice(0,5))+'</span>')}).join(""):empty("Расписание отсутствует","Занятия появятся после настройки расписания."),action("Расписание","schedule",true))+card("Мои контракты",state.contracts.length?state.contracts.map(function(c){return row("Контракт #"+c.id,formatMoney(c.total_amount)+' · '+statusText(c.status),'<button class="link" data-contract="'+c.id+'">Подробнее '+ico("arrow")+'</button>')}).join(""):empty("Контрактов пока нет","Информация появится после оформления контракта."),action("Все контракты","contracts",true))+'</div><div style="margin-top:18px" class="cols-2">'+card("Табель и успеваемость",state.study?'<div class="info-grid">'+infoItem("Посещено занятий",state.study.attended_lessons+" / "+state.study.held_lessons)+infoItem("Посещаемость",state.study.attendance_percent==null?"—":state.study.attendance_percent+"%")+infoItem("Оценки",(state.study.grades||[]).join(", ")||"—")+infoItem("Средняя оценка",avg)+'</div>':empty("Интеграция с Tabel не настроена","Посмотрите оценки в действующем портале Motion Web."),'<a href="https://portalmotionweb.com/#/my-grades" rel="noopener noreferrer" target="_blank" class="link">Tabel '+ico("link")+'</a>')+card("Фотография профиля",photoWidget(s))+'</div>'}
 function statusText(v){return {active:"Активный",completed:"Завершён",cancelled:"Отменён"}[v]||v||"—"}
@@ -69,33 +121,21 @@ function settingsView(){return heading("Настройки оформления"
 function viewMarkup(){switch(state.view){case "dashboard":return isAdmin()?adminDashboard():studentDashboard();case "students":return isAdmin()?studentsView():notFound("Раздел");case "groups":return isAdmin()?groupsView():notFound("Раздел");case "group":return isAdmin()?groupView():notFound("Группа");case "student":return isAdmin()?detailStudentView():notFound("Студент");case "contracts":return contractsView();case "contract":return contractView();case "payments":return paymentsView();case "schedule":return scheduleView();case "grades":return !isAdmin()?gradesView():notFound("Раздел");case "profile":return !isAdmin()?profileView():notFound("Раздел");case "settings":return settingsView();default:return adminDashboard()}}
 function layout(){return '<div class="layout" id="layout">'+sidebar()+'<main class="main">'+topbar()+'<div class="content">'+(state.loadError?'<div class="notice error-notice" style="margin-bottom:18px">'+safe(state.loadError)+' <button class="link" data-action="reload">Повторить</button></div>':"")+viewMarkup()+'</div></main></div>'}
 function loginView(){
-  return '<div class="login">' +
-    '<section class="login-brand-side">' +
-      '<div class="brand-header-login">' + brand() + '</div>' +
-      '<div class="login-hero">' +
-        '<div class="login-art" aria-hidden="true">' + logo() + '</div>' +
-        '<div class="hero-kicker">EDUFLOW · EDUCATION PLATFORM</div>' +
-        '<h1>Учёба и прогресс.<br><em>В одном месте.</em></h1>' +
-        '<p>Группы, расписание, контракты и история платежей в удобном личном кабинете.</p>' +
-        '<div class="login-benefits"><span>' + ico("check") + ' Студенты и группы</span><span>' + ico("calendar") + ' Расписание</span><span>' + ico("wallet") + ' Оплата обучения</span></div>' +
-      '</div>' +
-      '<div class="muted small login-copyright">© Motion Web Academy · EduFlow</div>' +
-    '</section>' +
-    '<section class="login-form-side">' +
-      '<div class="login-theme">' + themeBtns() + '</div>' +
-      '<div class="login-form-wrap">' +
-        '<div class="login-form-top"><div class="login-form-symbol">' + ico("lock") + '</div><div class="hero-kicker">Личный кабинет</div><h1 class="login-title">С возвращением!</h1><p>Войдите с логином и паролем вашего аккаунта EduFlow.</p></div>' +
-        '<form id="login-form">' +
-          '<div class="form-row"><label for="login-username" class="form-label">Логин</label><div class="login-field-wrap">' + ico("user") + '<input id="login-username" class="field" name="username" autocomplete="username" required maxlength="50" placeholder="Введите логин"></div></div>' +
-          '<div class="form-row"><label for="login-password" class="form-label">Пароль</label><div class="login-field-wrap">' + ico("lock") + '<input id="login-password" class="field password-field" name="password" autocomplete="current-password" type="password" required maxlength="128" placeholder="Введите пароль"><button type="button" class="password-toggle" data-action="toggle-password" aria-label="Показать пароль" aria-pressed="false">' + ico("eye") + '</button></div></div>' +
-          '<div class="form-error" id="login-error" role="alert" aria-live="polite"></div>' +
-          '<button class="btn wide login-submit-btn" id="login-submit" type="submit">Войти в кабинет ' + ico("arrow") + '</button>' +
-        '</form>' +
-        '<p class="login-help">Не получается войти? Убедитесь, что используется ваш аккаунт EduFlow и нужная база данных. Смена пароля через этот экран не производится.</p>' +
-      '</div>' +
-      '<div class="login-footer">EduFlow · защищённое соединение с API</div>' +
-    '</section>' +
-  '</div>';
+  return '<div class="login login-minimal">'
+    +'<div class="login-theme">'+themeBtns()+'</div>'
+    +'<div class="login-center">'
+    +'<div class="login-brand">'+brand()+'</div>'
+    +'<section class="login-form-wrap login-card">'
+      +'<div class="login-form-top"><h1 class="login-title">Вход в EduFlow</h1><p>Введите логин и пароль вашего аккаунта.</p></div>'
+      +'<form id="login-form">'
+        +'<div class="form-row"><label for="login-username" class="form-label">Логин</label><div class="login-field-wrap">'+ico("user")+'<input id="login-username" class="field" name="username" autocomplete="username" required maxlength="50" placeholder="Ваш логин"></div></div>'
+        +'<div class="form-row"><label for="login-password" class="form-label">Пароль</label><div class="login-field-wrap">'+ico("lock")+'<input id="login-password" class="field" name="password" autocomplete="current-password" type="password" required maxlength="128" placeholder="Ваш пароль"><button type="button" class="password-toggle" data-action="toggle-password" aria-label="Показать пароль" aria-pressed="false">'+ico("eye")+'</button></div></div>'
+        +'<div class="form-error" id="login-error" role="alert" aria-live="polite"></div>'
+        +'<button class="btn wide login-submit-btn" id="login-submit" type="submit">Войти '+ico("arrow")+'</button>'
+      +'</form>'
+    +'</section>'
+    +'<footer class="login-copyright">EduFlow · Motion Web Academy</footer>'
+    +'</div></div>';
 }
 function render(){applyTheme();app.innerHTML=state.user?layout():loginView();if(state.user&&state.view==="students")applyStudentsFilter()}
 function navigate(view,id){state.view=view;state.selected=id||null;window.location.hash="#/"+view+(id?"/"+id:"");render();window.scrollTo(0,0)}
