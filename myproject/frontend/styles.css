@@ -354,13 +354,13 @@ body[data-theme=dark] .login-benefits span{background:rgba(255,255,255,.04);bord
 body[data-theme=dark]{
  --bg:#131318;--surface:#1b1b22;--surface-2:#22222b;--surface-3:#2b2a37;
  --text:#f4f3f8;--muted:#9f9cae;--line:#30303b;--input:#292936;
- --accent:#9465f5;--accent-rgb:148,101,245;--shadow:0 8px 26px rgba(0,0,0,.055);
+ --shadow:0 8px 26px rgba(0,0,0,.055);
  --success:#40d4a8;--warn:#f2c45f
 }
 body[data-theme=light]{
  --bg:#f5f6f9;--surface:#fff;--surface-2:#f4f4f9;--surface-3:#e9eaf1;
  --text:#1c1b29;--muted:#6d6b7e;--line:#e4e4ec;--input:#f6f6fa;
- --accent:#7651df;--accent-rgb:118,81,223;--shadow:0 8px 26px rgba(35,30,64,.04)
+ --shadow:0 8px 26px rgba(35,30,64,.04)
 }
 body[data-theme=dark] .eduflow-brand-mark{background:linear-gradient(145deg,#7a4be0,#a16af5);box-shadow:0 10px 24px rgba(130,82,223,.18)}
 body[data-theme=light] .eduflow-brand-mark{background:linear-gradient(145deg,#7651df,#a16af5)}
@@ -445,3 +445,9 @@ body[data-theme=light] .login-card{box-shadow:0 25px 65px rgba(38,30,74,.07)}
 body[data-theme=light] .login.login-minimal{background:#f6f6f9}
 @media(max-width:1150px){.dashboard-finance{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-feature{grid-column:1/-1}.dashboard-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.dashboard-finance,.student-overview{grid-template-columns:1fr}.dashboard-feature{grid-column:auto}.dashboard-metrics{grid-template-columns:1fr 1fr}.dashboard-metric{padding:12px;grid-template-columns:32px minmax(0,1fr);gap:0 8px}.metric-icon{width:32px;height:32px}.metric-value{grid-column:2;grid-row:2;font-size:22px;margin-top:6px}.metric-copy{grid-row:1;grid-column:2}.dashboard-intro h1{font-size:25px}.content{padding:21px 14px 40px}.login-card{padding:26px 23px}.login-center{padding:77px 14px 54px}.login-minimal .login-theme{right:12px;top:13px}.dashboard-table{padding:15px}.dashboard-stat{min-height:180px}}
+
+body[data-theme=dark][data-accent=violet]{--accent:#9465f5;--accent-rgb:148,101,245}
+body[data-theme=light][data-accent=violet]{--accent:#7651df;--accent-rgb:118,81,223}
+.demo-preview-link{margin-top:17px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;padding:10px;border-radius:10px;color:var(--accent);font:600 13px/1.4 var(--font-ui);text-decoration:none}
+.demo-preview-link span{font-size:11px;color:var(--muted);font-weight:400}
+.demo-preview-link:hover{background:rgba(var(--accent-rgb),.06)}
