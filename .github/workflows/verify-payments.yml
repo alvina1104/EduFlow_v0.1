@@ -5,6 +5,7 @@ on:
       - feature/sequential-payments-college-mentor
       - feature/finik-confirmation-receipts
       - feature/frontend-login-ui-fix
+      - feature/frontend-clean-campus-design
   workflow_dispatch:
 
 permissions:
