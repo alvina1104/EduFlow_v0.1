@@ -67,3 +67,13 @@ def test_clean_campus_theme_and_fonts():
     assert 'body[data-theme=dark]' in css
     assert 'body[data-theme=light]' in css
     assert ':"blue"};' in js
+
+
+def test_login_does_not_show_education_platform_badge():
+    root = Path(__file__).resolve().parents[1] / "myproject" / "frontend"
+    js = (root / "app.js").read_text(encoding="utf-8")
+    start = js.index("function loginView(){")
+    end = js.index("function render(){", start)
+    login_html = js[start:end]
+    assert "Платформа для обучения" not in login_html
+    assert 'brand()' in login_html
