@@ -1,6 +1,6 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-:root{font-family:Manrope,Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-synthesis:none}
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Golos+Text:wght@400;500;600;700&display=swap');
+:root{font-family:"Golos Text",Arial,system-ui,sans-serif;font-synthesis:none}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-size:14px;transition:background .25s,color .25s}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}a{color:inherit;text-decoration:none}svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}.svg-library{position:absolute;width:0;height:0;overflow:hidden}
 body[data-accent=violet]{--accent:#9157f6;--accent-rgb:145,87,246}body[data-accent=blue]{--accent:#4d8fff;--accent-rgb:77,143,255}body[data-accent=cyan]{--accent:#1daac9;--accent-rgb:29,170,201}body[data-accent=green]{--accent:#20b891;--accent-rgb:32,184,145}body[data-accent=orange]{--accent:#fa9950;--accent-rgb:250,153,80}body[data-accent=pink]{--accent:#ea60af;--accent-rgb:234,96,175}
 body[data-theme=dark]{--bg:#090b16;--surface:#121525;--surface-2:#171b2f;--surface-3:#232740;--text:#f5f6ff;--muted:#a1a6bd;--line:#292e45;--shadow:0 25px 50px rgba(0,0,0,.18);--input:#191d31;--success:#53d8a2;--warn:#ffbf74}
@@ -120,4 +120,230 @@ body[data-theme=light] .academy-tag{background:rgba(255,255,255,.7)}
   .login-title{font-size:32px}
   .login-theme{top:17px;right:17px}
   .login-footer{font-size:10px}
+}
+
+
+/* EduFlow Clean Campus · visual direction from education UI references.
+   Changes are presentational only: no Backend, payment or auth contract changes. */
+:root{
+  --font-display:"Onest","Golos Text",system-ui,sans-serif;
+  --font-ui:"Golos Text",Arial,system-ui,sans-serif
+}
+body{font-family:var(--font-ui);font-size:15px;line-height:1.52}
+button,input,select,textarea{font-family:var(--font-ui)}
+h1,h2,h3,.brand,.top-name strong,.kpi-value,.group-card h2,.login-title,
+.hero h1,.login-hero h1,.headline h1,.btn,.nav-link{
+  font-family:var(--font-display)
+}
+h1,h2,h3{font-weight:700}
+body[data-accent=blue]{--accent:#168cda;--accent-rgb:22,140,218}
+body[data-accent=cyan]{--accent:#0e9cb2;--accent-rgb:14,156,178}
+body[data-theme=light]{
+  --bg:#f5f9ff;
+  --surface:#ffffff;
+  --surface-2:#f8fbff;
+  --surface-3:#eaf3fb;
+  --text:#19283f;
+  --muted:#61738d;
+  --line:#e2ebf5;
+  --input:#ffffff;
+  --shadow:0 12px 32px rgba(35,77,129,.045);
+  --success:#078e76;
+  --warn:#b47725
+}
+body[data-theme=dark]{
+  --bg:#101926;
+  --surface:#182537;
+  --surface-2:#1d2e43;
+  --surface-3:#2a3c52;
+  --text:#f4f8fc;
+  --muted:#adbdd0;
+  --line:#314357;
+  --input:#202f43;
+  --shadow:0 14px 35px rgba(0,0,0,.13)
+}
+.brand{font-weight:700;letter-spacing:-.6px}
+.brand-wordmark{font-family:var(--font-display);font-weight:700}
+.brand-wordmark small,.brand-caption{font-family:var(--font-ui);font-weight:500;letter-spacing:.01em}
+.eduflow-brand-mark{
+  background:linear-gradient(145deg,#188ed9,#36b7d9);
+  box-shadow:0 10px 24px rgba(22,140,218,.16)
+}
+.layout{grid-template-columns:258px minmax(0,1fr)}
+.sidebar{
+  padding:25px 16px;
+  background:var(--surface);
+  border-right:1px solid var(--line);
+  gap:20px
+}
+.nav{gap:6px}
+.nav-link{
+  padding:12px 14px;border-radius:12px;
+  font-size:14px;font-weight:600;letter-spacing:0
+}
+.nav-link.active{
+  color:var(--accent);border-color:transparent;
+  background:rgba(var(--accent-rgb),.095);
+  box-shadow:none
+}
+.nav-link:hover{background:var(--surface-3)}
+.nav-link svg{width:20px;height:20px}
+.topbar{
+  background:var(--surface);height:76px;
+  border-bottom:1px solid var(--line);
+  padding:0 34px
+}
+.top-name strong{font-size:19px;font-weight:700;letter-spacing:-.5px}
+.searchbox{
+  background:var(--surface-2);border-radius:13px;
+  min-width:250px
+}
+.searchbox input{font-size:13px}
+.content{max-width:1490px;padding:35px 36px 70px}
+.headline{margin-bottom:25px}
+.headline h1{
+  font-size:clamp(26px,2.2vw,33px);
+  font-weight:700;letter-spacing:-1px
+}
+.headline p{font-size:14px;line-height:1.65}
+.card{
+  padding:24px;
+  border-radius:19px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  box-shadow:var(--shadow)
+}
+.card h2{font-size:18px;font-weight:700;letter-spacing:-.4px}
+.card-head{margin-bottom:19px}
+.hero{
+  padding:40px 42px;
+  min-height:204px;
+  background:linear-gradient(110deg,#e5f5ff 0%,#eaf8fe 52%,#f4f8ff 100%);
+  border-color:#dbeeff;box-shadow:none
+}
+body[data-theme=dark] .hero{
+  background:linear-gradient(110deg,#1b344b,#1d3048 55%,#22364e);
+  border-color:var(--line)
+}
+.hero:before,.hero:after{
+  border-color:rgba(22,140,218,.12);
+  box-shadow:none;
+  width:430px;height:270px;right:-55px
+}
+.hero:after{right:-140px;top:20px;border-color:rgba(26,159,202,.12)}
+.hero-content{max-width:670px}
+.hero-kicker{
+  font-family:var(--font-ui);font-size:11px;
+  letter-spacing:1.2px;font-weight:700
+}
+.hero h1{font-size:clamp(27px,2.6vw,38px);font-weight:700;letter-spacing:-1.1px}
+.hero p{font-size:15px;line-height:1.7;max-width:560px}
+.kpis{gap:16px;margin:22px 0}
+.kpi{min-height:155px;padding:22px}
+.kpi.accent-card{border-color:var(--line);box-shadow:var(--shadow)}
+.kpi-label{font-size:13px;font-weight:600;gap:10px}
+.kpi-label svg{
+  width:20px;height:20px;
+  color:var(--accent)
+}
+.kpi-value{
+  font-size:clamp(24px,2vw,30px);
+  font-weight:700;letter-spacing:-.9px;margin:13px 0 4px;
+  overflow-wrap:anywhere
+}
+.kpi small{font-size:12px;line-height:1.55}
+.btn{
+  min-height:43px;border-radius:11px;
+  padding:11px 17px;
+  font-size:13px;font-weight:650;
+  box-shadow:0 7px 18px rgba(var(--accent-rgb),.14)
+}
+.btn:hover{box-shadow:0 10px 25px rgba(var(--accent-rgb),.16)}
+.btn.secondary{
+  background:var(--surface);border-color:var(--line);
+  color:var(--text)
+}
+.btn.ghost{color:var(--accent)}
+.table th{
+  font-size:11px;font-weight:600;
+  letter-spacing:.035em;text-transform:none;
+  color:var(--muted);
+  padding:15px 13px
+}
+.table td{font-size:14px;padding:15px 13px}
+.table button{font-weight:600}
+.table tbody tr:hover{background:rgba(var(--accent-rgb),.045)}
+.info-item span{font-size:13px}
+.info-item strong{font-size:15px;font-weight:650}
+.tile{background:var(--surface-2);border-radius:12px;padding:14px 15px}
+.tile strong{font-weight:650}
+.pill{font-size:12px;font-weight:600;padding:5px 11px}
+.field,.select{font-size:14px;border-radius:12px;min-height:45px}
+.group-card h2{font-size:20px;font-weight:700}
+.group-card .icon-surface{background:rgba(var(--accent-rgb),.105)}
+.login{
+  grid-template-columns:minmax(0,1.03fr) minmax(0,.97fr);
+  background:var(--bg)
+}
+.login-brand-side{
+  background:linear-gradient(140deg,#e6f6ff 0%,#f6fbff 57%,#e5f5f8 100%);
+  padding:clamp(30px,4vw,60px) clamp(34px,6vw,105px)
+}
+body[data-theme=light] .login-brand-side{
+  background:linear-gradient(140deg,#e6f6ff 0%,#f6fbff 57%,#e5f5f8 100%)
+}
+body[data-theme=dark] .login-brand-side{
+  background:linear-gradient(140deg,#17344e,#1b2d44 60%,#1c3942)
+}
+.login-brand-side:after{opacity:.15}
+.login-hero h1{
+  font-size:clamp(38px,4vw,57px);font-weight:700;
+  letter-spacing:-1.9px;line-height:1.13
+}
+.login-hero p{font-size:15px;line-height:1.75}
+.login-form-side{padding:105px clamp(28px,5vw,72px) 75px}
+.login-form-wrap{max-width:490px}
+.login-form-top{margin-bottom:29px}
+.login-title{
+  font-size:clamp(32px,2.8vw,42px);
+  font-weight:700;letter-spacing:-1.1px
+}
+.login-form-top p{font-size:15px}
+.login-form-wrap .form-label{font-size:14px;font-weight:600}
+.login-form-wrap .login-field-wrap .field{min-height:56px;font-size:16px}
+.login-submit-btn{min-height:55px;font-size:15px;font-weight:700}
+.login-benefits span{background:rgba(255,255,255,.55);border-color:rgba(26,128,187,.14)}
+body[data-theme=dark] .login-benefits span{background:rgba(255,255,255,.04);border-color:var(--line)}
+.login-art:before{border-color:rgba(22,140,218,.2);box-shadow:none}
+.login-art:after{border-color:rgba(22,140,218,.1)}
+.login-art .eduflow-brand-mark{box-shadow:0 18px 50px rgba(22,140,218,.2)}
+.login-help{font-size:12px;line-height:1.7}
+.login-theme{top:25px;right:25px}
+.theme-mode button{font-weight:600;font-size:12px}
+@media(max-width:1250px){
+  .content{padding:28px 24px 56px}
+}
+@media(max-width:950px){
+  .layout{grid-template-columns:1fr}
+  .login{grid-template-columns:1fr}
+  .login-brand-side{min-height:305px;padding:26px 30px}
+  .login-hero{padding:30px 0 12px}
+  .login-form-side{padding:84px 25px 74px}
+  .login-art{opacity:.17}
+}
+@media(max-width:650px){
+  body{font-size:14px}
+  .content{padding:20px 15px 45px}
+  .topbar{height:69px;padding:0 15px}
+  .hero{padding:26px 22px}
+  .hero h1{font-size:28px}
+  .hero p{font-size:13px}
+  .kpi{padding:18px;min-height:135px}
+  .login-brand-side{min-height:270px;padding:22px}
+  .login-hero{padding:28px 0 10px}
+  .login-hero h1{font-size:32px;letter-spacing:-1.1px}
+  .login-hero p{font-size:12px}
+  .login-form-side{padding:78px 21px 63px}
+  .login-title{font-size:32px}
+  .login-theme{right:15px;top:16px}
 }
