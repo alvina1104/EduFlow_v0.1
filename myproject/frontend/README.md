@@ -47,3 +47,21 @@ Student photo upload uses the existing `PUT /students/me/photo` route, which acc
 ### Verification
 
 A basic server-side static smoke test is included at `tests/test_frontend.py`. A browser walkthrough and backend-integrated API tests with the separate test database are still needed before production deployment. No production database should be changed for this UI work.
+
+
+## Professional dark UI and safe design preview
+
+The new Admin and Student dashboards use the former dark look as the baseline,
+with compact payment summaries, practical navigation, accessible SVG icons and
+Onest/Golos Text typography. A simplified login layout keeps the existing
+FastAPI `POST /auth/login` and `GET /auth/me` calls unchanged.
+
+Open `http://127.0.0.1:8000/app/preview.html` to see **fake admin and
+student dashboard screens** side-by-side with the real CSS, without requiring
+a working local login. All figures in the preview are examples. The preview
+does not fetch any API, write to the database, obtain a token or bypass access
+checks. The real UI is still available at `http://127.0.0.1:8000/`.
+
+Production Vercel accounts may have different password hashes from the local
+FastAPI `eduflow` database; no credentials or user records are transferred or
+modified by this Frontend-only change.

@@ -60,13 +60,13 @@ def test_clean_campus_theme_and_fonts():
     css = (root / "styles.css").read_text(encoding="utf-8")
     js = (root / "app.js").read_text(encoding="utf-8")
 
-    assert 'data-theme="light" data-accent="blue"' in html
+    assert 'data-theme="dark" data-accent="violet"' in html
     assert 'family=Onest' in css
     assert 'family=Golos+Text' in css
     assert '--font-display:' in css
     assert 'body[data-theme=dark]' in css
     assert 'body[data-theme=light]' in css
-    assert ':"blue"};' in js
+    assert ':"violet"};' in js
 
 
 def test_login_does_not_show_education_platform_badge():
@@ -77,3 +77,31 @@ def test_login_does_not_show_education_platform_badge():
     login_html = js[start:end]
     assert "Платформа для обучения" not in login_html
     assert 'brand()' in login_html
+
+
+def test_dark_admin_student_preview_is_static_and_clearly_labelled():
+    root = Path(__file__).resolve().parents[1] / "myproject" / "frontend"
+    preview = (root / "preview.html").read_text(encoding="utf-8")
+    app = (root / "app.js").read_text(encoding="utf-8")
+    css = (root / "styles.css").read_text(encoding="utf-8")
+    assert 'ДИЗАЙН-ПРЕВЬЮ' in preview
+    assert 'Нет доступа к аккаунтам, платежам или базе данных' in preview
+    assert 'id="admin-screen"' in preview
+    assert 'id="student-screen"' in preview
+    assert 'id="admin-tab"' in preview
+    assert 'id="student-tab"' in preview
+    assert '<script src="/app/app.js"' not in preview
+    assert 'fetch(' not in preview
+    assert 'localStorage' not in preview
+    assert 'data-theme="dark"' in preview
+    assert 'href="/app/preview.html"' in app
+    assert '.dashboard-finance' in css
+    assert '.login-minimal' in css
+
+
+def test_preview_static_html_is_served():
+    with TestClient(edu_app) as client:
+        response = client.get("/app/preview.html")
+    assert response.status_code == 200
+    assert "ДИЗАЙН-ПРЕВЬЮ" in response.text
+    assert "admin-screen" in response.text

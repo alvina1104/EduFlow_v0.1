@@ -7,6 +7,7 @@ on:
       - feature/frontend-login-ui-fix
       - feature/frontend-clean-campus-design
       - fix/login-diagnostics-remove-tag
+      - feature/professional-dark-ui-preview
   workflow_dispatch:
 
 permissions:
