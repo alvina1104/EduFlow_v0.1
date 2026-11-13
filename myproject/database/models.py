@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum
 from sqlalchemy import (Boolean, Date, DateTime, Enum as SQLEnum, ForeignKey,
                         Integer, Numeric, String, Time, Index, text,
-                        CheckConstraint, func, LargeBinary)
+                        CheckConstraint, func, LargeBinary, JSON)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
@@ -230,6 +230,9 @@ class Payment(Base):
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     contract: Mapped["Contract"] = relationship(back_populates="payments")
+    receipt: Mapped["FinikReceipt | None"] = relationship(
+        back_populates="payment", uselist=False
+    )
     allocations: Mapped[list["PaymentAllocation"]] = relationship(
         back_populates="payment", cascade="all, delete-orphan"
     )
@@ -284,3 +287,28 @@ class FinikTransaction(Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     payment: Mapped["Payment"] = relationship()
+
+class FinikReceipt(Base):
+    """EduFlow confirmation record, not an official Finik fiscal receipt."""
+    __tablename__ = "finik_receipts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    payment_id: Mapped[int] = mapped_column(
+        ForeignKey("payments.id"), unique=True, nullable=False
+    )
+    receipt_number: Mapped[str] = mapped_column(
+        String(40), unique=True, nullable=False
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="KGS", nullable=False)
+    provider_transaction_id: Mapped[str] = mapped_column(String(150), nullable=False)
+    provider_operation_id: Mapped[str | None] = mapped_column(String(150))
+    provider_paid_at: Mapped[datetime | None] = mapped_column(DateTime)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    verification_source: Mapped[str] = mapped_column(String(30), nullable=False)
+    allocation_snapshot: Mapped[list] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    payment: Mapped["Payment"] = relationship(back_populates="receipt")

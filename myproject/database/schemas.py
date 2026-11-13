@@ -294,3 +294,19 @@ class FinikTransactionResponseSchema(BaseSchema):
     admin_comment: str | None
     created_at: datetime
     confirmed_at: datetime | None
+
+
+class FinikReceiptResponseSchema(BaseSchema):
+    """Internal EduFlow payment confirmation; NOT Finik's original receipt."""
+    receipt_number: str
+    payment_id: int
+    amount: Decimal
+    currency: str
+    provider_transaction_id: str
+    provider_operation_id: str | None
+    provider_paid_at: datetime | None
+    confirmed_at: datetime
+    verification_source: str
+    allocation_snapshot: list[dict]
+    created_at: datetime
+
