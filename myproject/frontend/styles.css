@@ -18,3 +18,106 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .login-form-side{display:flex;align-items:center;justify-content:center;padding:60px 35px;position:relative}.login-form-wrap{max-width:400px;width:100%}.login-title{font-size:32px;letter-spacing:-1.1px;margin:0 0 10px}.login-form-wrap>p{color:var(--muted);line-height:1.7;margin:0 0 32px}.form-label{display:block;font-weight:800;font-size:12px;margin:0 0 9px}.form-row{margin-bottom:20px}.login-form-wrap .field{min-height:50px}.form-error{color:#f47a8e;min-height:20px;margin:12px 0;font-weight:700}.login-theme{position:absolute;top:24px;right:25px;display:flex;gap:8px}.login-footer{position:absolute;bottom:22px;color:var(--muted);font-size:11px}.photo-drop{border:1.5px dashed rgba(var(--accent-rgb),.68);border-radius:13px;min-height:170px;padding:25px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;text-align:center;background:rgba(var(--accent-rgb),.035);color:var(--muted);cursor:pointer;transition:.2s}.photo-drop:hover{border-color:var(--accent);background:rgba(var(--accent-rgb),.09)}.photo-drop svg{width:32px;height:32px;color:var(--accent)}.photo-drop strong{color:var(--text)}.preview-photo{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--accent)}.theme-swatches{display:flex;gap:13px;align-items:center;flex-wrap:wrap}.swatch{width:34px;height:34px;border-radius:50%;border:3px solid transparent;outline:1px solid transparent;position:relative}.swatch.selected{outline:2px solid var(--text);outline-offset:3px}.swatch[data-color=violet]{background:#9157f6}.swatch[data-color=blue]{background:#4d8fff}.swatch[data-color=cyan]{background:#1daac9}.swatch[data-color=green]{background:#20b891}.swatch[data-color=orange]{background:#fa9950}.swatch[data-color=pink]{background:#ea60af}.theme-mode{display:flex;gap:8px;flex-wrap:wrap}.theme-mode button{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 15px;color:var(--text);display:flex;align-items:center;gap:8px;font-weight:800}.theme-mode button.selected{background:rgba(var(--accent-rgb),.15);border-color:var(--accent);color:var(--accent)}.theme-mode svg{width:16px;height:16px}
 .empty{border:1px dashed var(--line);border-radius:12px;padding:35px 20px;text-align:center;color:var(--muted)}.empty svg{color:var(--accent);width:28px;height:28px;margin-bottom:10px}.empty strong{color:var(--text);display:block;margin-bottom:8px}.notice{padding:15px;border-radius:11px;border:1px solid rgba(var(--accent-rgb),.35);background:rgba(var(--accent-rgb),.08);color:var(--text);line-height:1.7}.error-notice{border-color:rgba(249,94,122,.45);background:rgba(249,94,122,.08)}.subheading{margin:20px 0 13px}.skeleton{height:80px;border-radius:12px;background:linear-gradient(90deg,var(--surface-2),var(--surface-3),var(--surface-2));background-size:200%;animation:shimmer 1.5s infinite}@keyframes shimmer{to{background-position:-200%}}.toast{position:fixed;bottom:24px;right:24px;z-index:99;background:var(--surface);border:1px solid var(--accent);padding:16px 22px;border-radius:12px;box-shadow:var(--shadow);max-width:350px}.breadcrumb{font-size:12px;color:var(--muted);margin-bottom:14px}.breadcrumb span{color:var(--accent)}.separator{height:1px;background:var(--line);margin:17px 0}.settings-option{padding:15px;border-radius:12px;background:var(--surface-2);display:flex;justify-content:space-between;align-items:center;gap:12px}.settings-option p{margin:5px 0 0;color:var(--muted);font-size:12px}.loading-full{min-height:180px;display:grid;place-items:center;color:var(--muted)}.file-upload{display:none}.badge-count{font-weight:800;color:var(--accent);font-size:24px}
 @media(max-width:1250px){.kpis{grid-template-columns:repeat(2,1fr)}.group-cards{grid-template-columns:repeat(2,1fr)}.topbar{padding:0 23px}.content{padding:26px 23px}}@media(max-width:950px){.layout{grid-template-columns:1fr}.sidebar{position:fixed;left:0;transform:translateX(-110%);transition:transform .2s;box-shadow:var(--shadow);width:270px}.layout.menu-open .sidebar{transform:translateX(0)}.mobile-open{display:grid}.topbar{height:72px}.identity span{display:none}.login{grid-template-columns:1fr}.login-brand-side{min-height:300px;padding:25px 30px}.login-art{position:absolute;right:4%;top:22px;opacity:.32;margin:0;transform:scale(.65)}.login-art:before{display:none}.login-hero h1{font-size:37px;max-width:390px;position:relative;z-index:1}.login-form-side{padding:65px 24px 80px}.login-theme{top:18px}.login-form-wrap{max-width:500px}.login-footer{bottom:14px}}@media(max-width:650px){.topbar{padding:0 14px;gap:9px}.top-name strong{font-size:16px}.top-name .muted{display:none}.searchbox{display:none}.top-tools{gap:6px}.identity{display:none}.content{padding:19px 13px 45px}.headline h1{font-size:23px}.headline{align-items:start}.headline .btn{max-width:145px;padding:8px;font-size:11px}.hero{padding:28px 23px;min-height:160px}.hero h1{font-size:26px}.kpis{gap:10px}.kpi{padding:16px;min-height:130px}.kpi-value{font-size:20px}.cols-2,.cols-3,.group-cards,.info-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.card{padding:17px}.detail-header{flex-wrap:wrap}.login-brand-side{min-height:270px}.login-hero h1{font-size:32px;letter-spacing:-1.6px}.login-hero p{font-size:12px}.login-form-side{align-items:flex-start;padding-top:72px}.login-title{font-size:27px}}
+
+/* Frontend login refresh: readable type, recognisable icons and balanced form.
+   Neutral EduFlow monogram is used until the owner provides official Motion Web logo. */
+.eduflow-brand-mark{
+  position:relative;display:inline-grid;place-items:center;
+  width:48px;height:48px;flex-shrink:0;border-radius:15px;
+  color:#fff;background:linear-gradient(140deg,#8e57ef 5%,#d276ff 95%);
+  font-family:Manrope,system-ui,sans-serif;font-size:31px;font-weight:800;
+  line-height:1;letter-spacing:-2px;
+  box-shadow:0 12px 32px rgba(var(--accent-rgb),.19)
+}
+.eduflow-brand-mark .brand-dot{
+  position:absolute;width:7px;height:7px;background:#fff;
+  border-radius:50%;right:9px;top:9px
+}
+.brand-wordmark{display:flex;flex-direction:column;gap:3px;line-height:1.1}
+.brand-wordmark small{font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted)}
+.login{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)}
+.login-brand-side{
+  padding:clamp(28px,3vw,54px) clamp(32px,5.2vw,110px);
+  background:
+    radial-gradient(ellipse at 32% 39%,rgba(var(--accent-rgb),.23),transparent 55%),
+    radial-gradient(ellipse at 85% 95%,rgba(36,163,208,.11),transparent 50%),
+    var(--surface)
+}
+.login-brand-side .brand{font-size:23px}
+.login-brand-side .eduflow-brand-mark{width:52px;height:52px;font-size:34px}
+.brand-header-login{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.academy-tag{font-size:11px;font-weight:700;letter-spacing:.035em;border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:8px 12px;color:var(--muted)}
+.login-hero{width:min(100%,680px)}
+.login-hero h1{font-size:clamp(38px,4.2vw,65px);letter-spacing:-2px;line-height:1.13;margin-top:17px}
+.login-hero p{font-size:16px;max-width:520px;line-height:1.7}
+.login-benefits{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.login-benefits span{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(var(--accent-rgb),.055);font-size:12px;font-weight:700;color:var(--muted)}
+.login-benefits svg{width:17px;height:17px;color:var(--accent)}
+.login-art{width:156px;height:156px;margin:0 0 25px 12px}
+.login-art:before{inset:8px;border-radius:31%;box-shadow:0 0 50px rgba(var(--accent-rgb),.17)}
+.login-art:after{width:138px;height:138px}
+.login-art .eduflow-brand-mark{
+  width:100px;height:100px;border-radius:30px;font-size:68px;
+  box-shadow:0 20px 70px rgba(var(--accent-rgb),.24)
+}
+.login-art .eduflow-brand-mark .brand-dot{width:11px;height:11px;top:18px;right:17px}
+.login-form-side{padding:100px clamp(28px,5vw,80px) 70px}
+.login-form-wrap{width:100%;max-width:470px}
+.login-form-top{margin-bottom:32px}
+.login-form-symbol{
+  display:grid;place-items:center;width:52px;height:52px;
+  border-radius:16px;background:rgba(var(--accent-rgb),.13);
+  border:1px solid rgba(var(--accent-rgb),.25);margin-bottom:24px;color:var(--accent)
+}
+.login-form-symbol svg{width:24px;height:24px}
+.login-title{font-size:clamp(30px,2.8vw,43px);line-height:1.15;letter-spacing:-1.25px;margin:11px 0 12px}
+.login-form-top p{color:var(--muted);font-size:14px;line-height:1.7;margin:0}
+.login-form-wrap .form-label{font-size:13px;margin-bottom:10px}
+.login-form-wrap .form-row{margin-bottom:22px}
+.login-field-wrap{position:relative}
+.login-field-wrap>svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);width:20px;height:20px;pointer-events:none}
+.login-form-wrap .login-field-wrap .field{
+  width:100%;min-height:55px;padding:0 49px;
+  font-size:15px;border-radius:13px;border:1px solid var(--line);
+  background:var(--input);color:var(--text)
+}
+.login-form-wrap .login-field-wrap .field:focus{
+  border-color:var(--accent);outline:3px solid rgba(var(--accent-rgb),.14);
+  box-shadow:0 0 0 1px var(--accent)
+}
+.password-toggle{position:absolute;top:50%;right:10px;transform:translateY(-50%);width:38px;height:38px;display:grid;place-items:center;background:transparent;color:var(--muted);border:0;border-radius:9px}
+.password-toggle:hover{background:var(--surface-3);color:var(--text)}
+.password-toggle svg{width:19px;height:19px}
+.login-submit-btn{min-height:53px;font-size:14px;border-radius:13px}
+.login-help{margin-top:24px;color:var(--muted);font-size:12px;line-height:1.8}
+.login-form-wrap .form-error{font-size:13px;line-height:1.5;min-height:24px;margin:13px 0;padding:0}
+.login-form-wrap .form-error:not(:empty){padding:12px 14px;border-radius:10px;background:rgba(249,94,122,.09);border:1px solid rgba(249,94,122,.25)}
+.login-copyright{position:relative;z-index:1}
+body[data-theme=light] .login-brand-side{background:radial-gradient(ellipse at 24% 40%,rgba(var(--accent-rgb),.14),transparent 57%),#f1edfa}
+body[data-theme=light] .academy-tag{background:rgba(255,255,255,.7)}
+@media(max-width:950px){
+  .login{grid-template-columns:1fr}
+  .login-brand-side{min-height:310px;padding:27px 30px}
+  .login-hero{padding:32px 0 10px}
+  .login-hero h1{font-size:clamp(33px,5vw,45px)}
+  .login-art{position:absolute;right:6%;top:68px;opacity:.32;margin:0;transform:scale(.8)}
+  .login-form-side{padding:90px 24px 75px}
+  .login-form-wrap{max-width:520px}
+  .academy-tag{display:none}
+}
+@media(max-width:650px){
+  .login-brand-side{min-height:280px;padding:22px 22px 28px}
+  .login-brand-side .brand{font-size:20px}
+  .login-brand-side .eduflow-brand-mark{width:43px;height:43px;font-size:29px}
+  .brand-wordmark small{font-size:9px}
+  .login-hero{padding:32px 0 12px}
+  .login-hero h1{font-size:32px;line-height:1.16}
+  .login-hero p{font-size:12px;max-width:290px}
+  .login-art{top:70px;right:-18px;transform:scale(.65);opacity:.2}
+  .login-benefits{display:none}
+  .login-form-side{padding:77px 22px 65px}
+  .login-form-top{margin-bottom:27px}
+  .login-title{font-size:32px}
+  .login-theme{top:17px;right:17px}
+  .login-footer{font-size:10px}
+}

@@ -14,8 +14,9 @@ function formatMoney(value){var n=Number(value);return Number.isFinite(n)?new In
 function formatDate(v){if(!v)return "—";var d=new Date(v+"T00:00:00");return isNaN(d.getTime())?safe(v):new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"short",year:"numeric"}).format(d)}
 function formatDateTime(value){if(!value)return "—";var raw=String(value);if(!(/[zZ]$|[+-]\d\d:\d\d$/.test(raw)))raw+="Z";var d=new Date(raw);return isNaN(d.getTime())?"—":new Intl.DateTimeFormat("ru-RU",{timeZone:"Asia/Bishkek",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d)}
 function statusTag(value){var v=String(value||"").toLowerCase(),ok=["active","confirmed","completed","approved"].includes(v),pending=["pending"].includes(v);var labels={active:"Активный",confirmed:"Подтверждён",completed:"Завершён",approved:"Одобрено",pending:"В ожидании",rejected:"Отклонён",cancelled:"Отменён"};return '<span class="pill '+(ok?"active":pending?"pending":"")+'">'+safe(labels[v]||v||"—")+"</span>"}
-function logo(){return '<svg class="brand-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 60" aria-label="Motion Web"><path fill="#f1353d" d="M4 17h17v36H4zM24 7h17v46H24zM44 7h14l17 17v29H58V29L44 15z"/><circle cx="86" cy="7" r="4" fill="none" stroke="#f1353d" stroke-width="2"/></svg>'}
-function brand(){return '<div class="brand">'+logo()+'<span>Motion Web</span></div>'}
+// Временный знак именно EduFlow, а не выдуманный «официальный» логотип Motion Web.
+function logo(){return '<span class="brand-mark eduflow-brand-mark" aria-hidden="true">E<span class="brand-dot"></span></span>'}
+function brand(){return '<div class="brand">'+logo()+'<span class="brand-wordmark">EduFlow<small>Motion Web Academy</small></span></div>'}
 function prefsKey(key){return "eduflow."+key+(state.user?"."+state.user.username:"")}
 function loadUserPrefs(){if(!state.user)return;var theme=localStorage.getItem(prefsKey("theme")),accent=localStorage.getItem(prefsKey("accent"));if(theme==="light"||theme==="dark")pref.theme=theme;if(COLORS.includes(accent))pref.accent=accent}
 function applyTheme(){document.body.dataset.theme=pref.theme;document.body.dataset.accent=pref.accent;localStorage.setItem(prefsKey("theme"),pref.theme);localStorage.setItem(prefsKey("accent"),pref.accent)}
@@ -67,18 +68,87 @@ function profileView(){var s=myStudent(),p=s&&s.personal_info||{},g=groupOfStude
 function settingsView(){return heading("Настройки оформления","Выберите удобный режим и цвет подсветки. Настройки сохраняются только в этом браузере.")+'<div class="cols-2">'+card("Режим экрана",'<p class="muted">Дневной режим с белыми карточками или ночной режим с неоновой подсветкой.</p>'+themeBtns())+card("Цвет акцента",'<p class="muted">Выберите любимый цвет. Он применяется к кнопкам, активному меню и свечению карточек.</p>'+palette())+'</div><div style="margin-top:18px">'+card("Motion Web",'<div class="row">'+logo()+'<div><strong>EduFlow / Motion Web Academy</strong><p class="muted small">Оформление не меняет данные и права доступа.</p></div></div>')+'</div>'}
 function viewMarkup(){switch(state.view){case "dashboard":return isAdmin()?adminDashboard():studentDashboard();case "students":return isAdmin()?studentsView():notFound("Раздел");case "groups":return isAdmin()?groupsView():notFound("Раздел");case "group":return isAdmin()?groupView():notFound("Группа");case "student":return isAdmin()?detailStudentView():notFound("Студент");case "contracts":return contractsView();case "contract":return contractView();case "payments":return paymentsView();case "schedule":return scheduleView();case "grades":return !isAdmin()?gradesView():notFound("Раздел");case "profile":return !isAdmin()?profileView():notFound("Раздел");case "settings":return settingsView();default:return adminDashboard()}}
 function layout(){return '<div class="layout" id="layout">'+sidebar()+'<main class="main">'+topbar()+'<div class="content">'+(state.loadError?'<div class="notice error-notice" style="margin-bottom:18px">'+safe(state.loadError)+' <button class="link" data-action="reload">Повторить</button></div>':"")+viewMarkup()+'</div></main></div>'}
-function loginView(){return '<div class="login"><section class="login-brand-side"><div>'+brand()+'<div class="brand-caption">EduFlow · Academy</div></div><div class="login-hero"><div class="login-art" aria-hidden="true">'+logo()+'</div><div class="hero-kicker">Education management platform</div><h1>Твоё обучение.<br><em>Твой прогресс.</em><br>Твой EduFlow.</h1><p>Единое пространство для студентов и администрации Motion Web Academy.</p></div><div class="muted small">© Motion Web Academy · EduFlow</div></section><section class="login-form-side"><div class="login-theme">'+themeBtns()+'</div><div class="login-form-wrap"><div class="hero-kicker" style="margin-bottom:12px">Добро пожаловать</div><h1 class="login-title">Войти в EduFlow</h1><p>Введите логин и пароль вашего аккаунта EduFlow. Интеграция единого входа с Tabel будет подключаться отдельно.</p><form id="login-form"><div class="form-row"><label for="login-username" class="form-label">Логин</label><input id="login-username" class="field" name="username" autocomplete="username" required placeholder="Ваш логин"></div><div class="form-row"><label for="login-password" class="form-label">Пароль</label><input id="login-password" class="field" name="password" autocomplete="current-password" type="password" required placeholder="Ваш пароль"></div><div class="form-error" id="login-error" role="alert"></div><button class="btn wide" id="login-submit" type="submit">Войти '+ico("arrow")+'</button></form><p class="muted small" style="margin-top:22px">Нет доступа? Обратитесь к администратору академии.</p></div><div class="login-footer">Защищённый вход через FastAPI / JWT</div></section></div>'}
+function loginView(){
+  return '<div class="login">' +
+    '<section class="login-brand-side">' +
+      '<div class="brand-header-login">' + brand() + '<span class="academy-tag">Платформа для обучения</span></div>' +
+      '<div class="login-hero">' +
+        '<div class="login-art" aria-hidden="true">' + logo() + '</div>' +
+        '<div class="hero-kicker">EDUFLOW · EDUCATION PLATFORM</div>' +
+        '<h1>Учёба и прогресс.<br><em>В одном месте.</em></h1>' +
+        '<p>Группы, расписание, контракты и история платежей в удобном личном кабинете.</p>' +
+        '<div class="login-benefits"><span>' + ico("check") + ' Студенты и группы</span><span>' + ico("calendar") + ' Расписание</span><span>' + ico("wallet") + ' Оплата обучения</span></div>' +
+      '</div>' +
+      '<div class="muted small login-copyright">© Motion Web Academy · EduFlow</div>' +
+    '</section>' +
+    '<section class="login-form-side">' +
+      '<div class="login-theme">' + themeBtns() + '</div>' +
+      '<div class="login-form-wrap">' +
+        '<div class="login-form-top"><div class="login-form-symbol">' + ico("lock") + '</div><div class="hero-kicker">Личный кабинет</div><h1 class="login-title">С возвращением!</h1><p>Войдите с логином и паролем вашего аккаунта EduFlow.</p></div>' +
+        '<form id="login-form">' +
+          '<div class="form-row"><label for="login-username" class="form-label">Логин</label><div class="login-field-wrap">' + ico("user") + '<input id="login-username" class="field" name="username" autocomplete="username" required maxlength="50" placeholder="Введите логин"></div></div>' +
+          '<div class="form-row"><label for="login-password" class="form-label">Пароль</label><div class="login-field-wrap">' + ico("lock") + '<input id="login-password" class="field password-field" name="password" autocomplete="current-password" type="password" required maxlength="128" placeholder="Введите пароль"><button type="button" class="password-toggle" data-action="toggle-password" aria-label="Показать пароль" aria-pressed="false">' + ico("eye") + '</button></div></div>' +
+          '<div class="form-error" id="login-error" role="alert" aria-live="polite"></div>' +
+          '<button class="btn wide login-submit-btn" id="login-submit" type="submit">Войти в кабинет ' + ico("arrow") + '</button>' +
+        '</form>' +
+        '<p class="login-help">Не получается войти? Убедитесь, что используется ваш аккаунт EduFlow и нужная база данных. Смена пароля через этот экран не производится.</p>' +
+      '</div>' +
+      '<div class="login-footer">EduFlow · защищённое соединение с API</div>' +
+    '</section>' +
+  '</div>';
+}
 function render(){applyTheme();app.innerHTML=state.user?layout():loginView();if(state.user&&state.view==="students")applyStudentsFilter()}
 function navigate(view,id){state.view=view;state.selected=id||null;window.location.hash="#/"+view+(id?"/"+id:"");render();window.scrollTo(0,0)}
 function syncHash(){if(!state.user)return;var m=location.hash.match(/^#\/(dashboard|students|groups|group|student|contracts|contract|payments|schedule|grades|profile|settings)(?:\/(\d+))?$/);if(m){if(!isAdmin()&&["students","groups","group","student"].includes(m[1])){navigate("dashboard");return}state.view=m[1];state.selected=m[2]?Number(m[2]):null}render()}
 async function loadData(){state.loadError=null;state.loading=true;try{if(isAdmin()){var r=await Promise.all([request("/students/"),request("/groups/"),request("/contracts/"),request("/payments/")]);state.students=r[0];state.groups=r[1];state.contracts=r[2];state.payments=r[3];state.balances=[]}else{var s=await request("/students/me");state.profile=s;state.students=[s];var r=await Promise.all([optionalRequest("/groups/my",null),request("/contracts/my"),request("/payments/my"),request("/payments/my/balance"),optionalRequest("/study/me",null)]);state.groups=r[0]?[r[0]]:[];state.contracts=r[1];state.payments=r[2];state.balances=r[3];state.study=r[4];loadMyPhoto(s.id)}state.ready=true}catch(e){state.loadError=e.message;state.ready=false}finally{state.loading=false;render()}}
 async function loadMyPhoto(id){if(!state.token)return;try{var r=await fetch("/students/"+id+"/photo",{headers:authHeaders(),cache:"no-store"});if(!r.ok)return;var b=await r.blob();if(state.photoUrl)URL.revokeObjectURL(state.photoUrl);state.photoUrl=URL.createObjectURL(b);if(state.view==="profile"||state.view==="dashboard")render()}catch(e){}}
-async function doLogin(form){var submit=el("login-submit"),msg=el("login-error");if(!submit||!msg)return;submit.disabled=true;msg.textContent="";try{var r=await fetch("/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:form.elements.namedItem("username").value.trim(),password:form.elements.namedItem("password").value}),cache:"no-store"});var data=await r.json();if(!r.ok)throw Error(typeof data.detail==="string"?data.detail:"Невозможно войти");state.token=data.access_token;state.refresh=data.refresh_token;state.user=await request("/auth/me");loadUserPrefs();state.view="dashboard";state.selected=null;location.hash="#/dashboard";render();await loadData()}catch(e){state.token=null;state.refresh=null;state.user=null;render();el("login-error").textContent=e.message||"Ошибка входа"}finally{var b=el("login-submit");if(b)b.disabled=false}}
+async function doLogin(form){
+  var submit=el("login-submit"), msg=el("login-error");
+  if(!submit||!msg)return;
+  submit.disabled=true;
+  msg.textContent="";
+  try{
+    var username=form.elements.namedItem("username").value.trim();
+    var password=form.elements.namedItem("password").value;
+    var response=await fetch("/auth/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username:username,password:password}),
+      cache:"no-store"
+    });
+    var data=null;
+    try{data=await response.json()}catch(e){}
+    if(!response.ok){
+      if(response.status===401)throw Error("Неверный логин или пароль. Возможно, сервер подключён к другой базе данных.");
+      if(response.status===403)throw Error("Аккаунт отключён. Обратитесь к администратору.");
+      if(response.status>=500)throw Error("Сервер временно недоступен. Проверьте подключение к PostgreSQL.");
+      throw Error(data&&typeof data.detail==="string"?data.detail:"Ошибка входа: "+response.status);
+    }
+    if(!data||!data.access_token)throw Error("Сервер вернул некорректный ответ.");
+    state.token=data.access_token;
+    state.refresh=data.refresh_token;
+    state.user=await request("/auth/me");
+    loadUserPrefs();
+    state.view="dashboard";
+    state.selected=null;
+    location.hash="#/dashboard";
+    render();
+    await loadData();
+  }catch(e){
+    state.token=null;state.refresh=null;state.user=null;
+    render();
+    var error=el("login-error");
+    if(error)error.textContent=e instanceof TypeError?"Нет связи с сервером. Проверьте, что FastAPI запущен.":(e.message||"Ошибка входа");
+  }finally{
+    var b=el("login-submit");
+    if(b)b.disabled=false;
+  }
+}
 async function signOut(revoke){var refresh=state.refresh,access=state.token;if(revoke&&refresh&&access){try{await fetch("/auth/logout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+access},body:JSON.stringify({refresh_token:refresh}),cache:"no-store"})}catch(e){}}state.token=null;state.refresh=null;state.user=null;state.students=[];state.groups=[];state.contracts=[];state.payments=[];state.profile=null;state.study=null;state.balances=[];state.loadError=null;state.view="dashboard";if(state.photoUrl)URL.revokeObjectURL(state.photoUrl);state.photoUrl=null;location.hash="";render()}
 function applyStudentsFilter(){var inp=el("students-filter"),sel=el("group-filter"),target=el("students-results");if(!inp||!sel||!target)return;var q=inp.value.trim().toLocaleLowerCase(),group=sel.value;var found=state.students.filter(function(s){return (!group||String(s.group_id)===group)&&(!q||studentName(s).toLocaleLowerCase().includes(q)||String(s.student_number).toLocaleLowerCase().includes(q))});target.innerHTML=listStudents(found)}
 async function uploadPhoto(file){if(!file||!state.profile)return;if(!["image/jpeg","image/png"].includes(file.type)){toast("Разрешены JPG и PNG");return}if(file.size>2*1024*1024){toast("Файл должен быть не больше 2 МБ");return}var form=new FormData();form.append("file",file);try{await request("/students/me/photo",{method:"PUT",body:form});toast("Фотография обновлена");await loadMyPhoto(state.profile.id)}catch(e){toast(e.message)}}
 document.addEventListener("submit",function(e){if(e.target.id==="login-form"){e.preventDefault();doLogin(e.target)}});
-document.addEventListener("click",function(e){var a=e.target.closest("[data-action],[data-go],[data-group],[data-student],[data-contract]");if(!a)return;if(a.dataset.action==="theme"){setTheme(a.dataset.value);return}if(a.dataset.action==="accent"){setAccent(a.dataset.color);return}if(a.dataset.action==="logout"){signOut(true);return}if(a.dataset.action==="reload"){loadData();return}if(a.dataset.action==="menu"){el("layout").classList.toggle("menu-open");return}if(a.dataset.group){navigate("group",Number(a.dataset.group));return}if(a.dataset.student){navigate("student",Number(a.dataset.student));return}if(a.dataset.contract){navigate("contract",Number(a.dataset.contract));return}if(a.dataset.go){navigate(a.dataset.go);return}});
+document.addEventListener("click",function(e){var a=e.target.closest("[data-action],[data-go],[data-group],[data-student],[data-contract]");if(!a)return;if(a.dataset.action==="toggle-password"){var pass=el("login-password");if(pass){var showing=pass.type==="password";pass.type=showing?"text":"password";a.setAttribute("aria-label",showing?"Скрыть пароль":"Показать пароль");a.setAttribute("aria-pressed",String(showing));a.innerHTML=ico(showing?"eye-off":"eye");pass.focus()}return}if(a.dataset.action==="theme"){setTheme(a.dataset.value);return}if(a.dataset.action==="accent"){setAccent(a.dataset.color);return}if(a.dataset.action==="logout"){signOut(true);return}if(a.dataset.action==="reload"){loadData();return}if(a.dataset.action==="menu"){el("layout").classList.toggle("menu-open");return}if(a.dataset.group){navigate("group",Number(a.dataset.group));return}if(a.dataset.student){navigate("student",Number(a.dataset.student));return}if(a.dataset.contract){navigate("contract",Number(a.dataset.contract));return}if(a.dataset.go){navigate(a.dataset.go);return}});
 document.addEventListener("input",function(e){if(e.target.id==="students-filter"||e.target.id==="group-filter")applyStudentsFilter()});
 document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target.id==="top-search"){e.preventDefault();var q=e.target.value;navigate("students");var f=el("students-filter");if(f){f.value=q;applyStudentsFilter();f.focus()}}});
 document.addEventListener("change",function(e){if(e.target.id==="group-filter")applyStudentsFilter();if(e.target.id==="profile-upload")uploadPhoto(e.target.files[0])});
