@@ -1,6 +1,8 @@
 import os
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from sqlalchemy import text
 import uvicorn
 from myproject.api import (auth, contracts, groups, payments, personal_info, students,
@@ -25,6 +27,15 @@ edu_app.include_router(users.user_router)
 edu_app.include_router(schedules.schedules_router)
 edu_app.include_router(study.study_router)
 edu_app.include_router(finik.finik_router)
+
+# Self-contained frontend; existing API routes remain unchanged.
+FRONTEND_DIR = Path(__file__).resolve().parent / "myproject" / "frontend"
+edu_app.mount("/app", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+
+
+@edu_app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(FRONTEND_DIR / "index.html")
 
 
 
