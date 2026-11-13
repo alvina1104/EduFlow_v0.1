@@ -4,7 +4,7 @@
 var app=document.getElementById("app");
 var COLORS=["violet","blue","cyan","green","orange","pink"];
 var state={token:null,refresh:null,user:null,students:[],groups:[],contracts:[],payments:[],profile:null,study:null,balances:[],loadError:null,view:"dashboard",selected:null,photoUrl:null,ready:false,loading:false};
-var pref={theme:localStorage.getItem("eduflow.theme")==="light"?"light":"dark",accent:COLORS.includes(localStorage.getItem("eduflow.accent"))?localStorage.getItem("eduflow.accent"):"violet"};
+var pref={theme:localStorage.getItem("eduflow.theme")==="dark"?"dark":"light",accent:COLORS.includes(localStorage.getItem("eduflow.accent"))?localStorage.getItem("eduflow.accent"):"blue"};
 function el(id){return document.getElementById(id)}
 function ico(name){return '<svg aria-hidden="true"><use href="#i-'+name+'"></use></svg>'}
 function escapeHtml(t){return String(t==null?"":t).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
