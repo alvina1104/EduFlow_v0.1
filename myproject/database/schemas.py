@@ -109,6 +109,7 @@ class StudentResponseSchema(BaseSchema):
     user_id: int
     group_id: int | None
     student_number: str
+    mentor_name: str | None = None
     personal_info: PersonalInfoResponseSchema | None
     group_history: list[StudentGroupHistoryResponseSchema]
 
@@ -116,6 +117,7 @@ class StudentResponseSchema(BaseSchema):
 class GroupCreateSchema(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     course_name: str = Field(min_length=1, max_length=150)
+    mentor_name: str | None = Field(default=None, max_length=150)
     start_date: date
     end_date: date | None = None
 
@@ -133,6 +135,7 @@ class GroupResponseSchema(BaseSchema):
     id: int
     name: str
     course_name: str
+    mentor_name: str | None = None
     start_date: date
     end_date: date | None
     schedules: list[ScheduleResponseSchema]
@@ -146,6 +149,15 @@ class ContractCreateSchema(BaseModel):
     start_date: date
     payment_day: int | None = Field(default=None, ge=1, le=28)
     type: ContractType = ContractType.ACADEMY
+    installment_count: int | None = Field(default=None, ge=2, le=3)
+
+    @model_validator(mode="after")
+    def validate_installments(self):
+        if self.type == ContractType.COLLEGE and self.installment_count is None:
+            self.installment_count = 2
+        if self.type == ContractType.ACADEMY and self.installment_count is not None:
+            raise ValueError("Для академии количество взносов не указывается")
+        return self
 
 
 
@@ -183,6 +195,7 @@ class ContractResponseSchema(BaseSchema):
     status: ContractStatus
     created_at: datetime
     payment_day: int | None
+    installment_count: int | None = None
     academic_leaves: list[AcademicLeaveResponseSchema]
     type: ContractType
 
@@ -204,6 +217,14 @@ class PaymentStatusUpdateSchema(BaseModel):
     status: PaymentStatus
 
 
+
+class PaymentAllocationResponseSchema(BaseSchema):
+    id: int
+    period_index: int
+    payment_month: str | None
+    amount: Decimal
+
+
 class PaymentResponseSchema(BaseSchema):
     id: int
     contract_id: int
@@ -216,6 +237,7 @@ class PaymentResponseSchema(BaseSchema):
     paid_at: datetime | None
     confirmed_by_admin_id: int | None
     payment_month: str
+    allocations: list[PaymentAllocationResponseSchema] = Field(default_factory=list)
 
 
 class ScheduleCreateSchema(BaseModel):

@@ -65,6 +65,7 @@ class Group(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     course_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    mentor_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
@@ -81,6 +82,10 @@ class Student(Base):
     group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id"), nullable=True)
     student_number: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
     profile_photo: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+
+    @property
+    def mentor_name(self) -> str | None:
+        return self.group.mentor_name if self.group else None
 
     user: Mapped["User"] = relationship(back_populates="student")
     group: Mapped["Group | None"] = relationship(back_populates="students")
@@ -180,6 +185,7 @@ class Contract(Base):
     status: Mapped[ContractStatus] = mapped_column(SQLEnum(ContractStatus), default=ContractStatus.ACTIVE, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     payment_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    installment_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     type: Mapped[ContractType] = mapped_column(SQLEnum(ContractType),
                                                default=ContractType.ACADEMY,
                                                server_default="ACADEMY",nullable=False)
@@ -224,9 +230,29 @@ class Payment(Base):
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     contract: Mapped["Contract"] = relationship(back_populates="payments")
+    allocations: Mapped[list["PaymentAllocation"]] = relationship(
+        back_populates="payment", cascade="all, delete-orphan"
+    )
     confirmed_by_admin: Mapped["User | None"] = relationship(
         back_populates="confirmed_payments", foreign_keys=[confirmed_by_admin_id]
     )
+
+
+class PaymentAllocation(Base):
+    """Разбивка одного платежа по месяцам академии / взносам колледжа."""
+    __tablename__ = "payment_allocations"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_payment_allocations_positive"),
+        Index("uq_payment_allocations_payment_period", "payment_id", "period_index", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    payment_id: Mapped[int] = mapped_column(ForeignKey("payments.id"), nullable=False)
+    period_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    payment_month: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+
+    payment: Mapped["Payment"] = relationship(back_populates="allocations")
 
 
 class FinikTransaction(Base):

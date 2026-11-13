@@ -7,7 +7,7 @@ from myproject.database.models import (
 )
 
 
-def _body(contract, amount="100.00", month="2026-10"):
+def _body(contract, amount="100.00", month="2026-01"):
     return {
         "request_id": str(uuid4()),
         "contract_id": contract.id,
@@ -362,7 +362,7 @@ def test_undocumented_failure_webhook_does_not_change_payment_or_release_month(
     balance = client.get("/payments/my/balance", headers=headers).json()[0]
     assert balance["paid_amount"] == 0
     retried = client.post("/finik/payments", headers=headers,
-                          json=_body(contract, amount="100.00", month="2026-10"))
+                          json=_body(contract, amount="100.00", month="2026-01"))
     assert retried.status_code == 201
     assert client.get("/payments/my/balance", headers=headers).json()[0]["paid_amount"] == 0
 

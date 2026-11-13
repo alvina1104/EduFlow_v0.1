@@ -14,6 +14,10 @@ from myproject.core.dependencies import get_current_admin, get_current_student, 
 from myproject.services.schedule import (
     contract_periods, current_month, find_contract_period
 )
+from myproject.services.payment_allocation import (
+    payment_plan, confirmed_by_period, distribute_payment,
+    prepare_confirmation, save_allocations
+)
 
 payments_router = APIRouter(prefix="/payments", tags=["Payments"])
 
@@ -55,39 +59,45 @@ def calculate_balance(contract_id: int, db: Session):
     overdue_amount = Decimal("0")
     next_due_date = None
     next_due_amount = None
+    installment_count = None
+    paid_installments = None
+    next_installment_amount = None
 
-    if contract.type == ContractType.ACADEMY and contract.monthly_payment > 0:
-        paid_by_month = dict(
-            db.query(
-                Payment.payment_month,
-                func.coalesce(func.sum(Payment.amount), 0)
-            ).filter(
-                Payment.contract_id == contract_id,
-                Payment.status == PaymentStatus.CONFIRMED
-            ).group_by(Payment.payment_month).all()
-        )
+    plan = payment_plan(contract)
+    paid_by_period = confirmed_by_period(contract, db)
 
+    if contract.type == ContractType.ACADEMY:
         paid_months = 0
         overdue_months = 0
         today = date.today()
 
-        for period in contract_periods(contract):
-            month_paid = paid_by_month.get(period.month, Decimal("0"))
-            outstanding = max(contract.monthly_payment - month_paid, Decimal("0"))
-
+        for period in plan:
+            outstanding = max(
+                Decimal("0"), period["amount"] - paid_by_period[period["index"]]
+            )
             if outstanding <= 0:
                 paid_months += 1
                 continue
 
             if next_due_date is None:
-                next_due_date = period.due_date
+                next_due_date = period["due_date"]
                 next_due_amount = outstanding
 
-            if period.due_date < today:
+            if period["due_date"] < today:
                 overdue_months += 1
                 overdue_amount += outstanding
 
         overdue_amount = min(overdue_amount, max(remaining, Decimal("0")))
+    else:
+        installment_count = len(plan)
+        paid_installments = sum(
+            paid_by_period[p["index"]] >= p["amount"] for p in plan
+        )
+        next_installment_amount = next(
+            (p["amount"] - paid_by_period[p["index"]]
+             for p in plan if paid_by_period[p["index"]] < p["amount"]),
+            Decimal("0"),
+        )
 
     return {
         "contract_id": contract.id,
@@ -99,16 +109,22 @@ def calculate_balance(contract_id: int, db: Session):
         "overdue_months": overdue_months,
         "overdue_amount": overdue_amount,
         "next_due_date": next_due_date,
-        "next_due_amount": next_due_amount
+        "next_due_amount": next_due_amount,
+        "installment_count": installment_count,
+        "paid_installments": paid_installments,
+        "next_installment_amount": next_installment_amount
     }
 
 
 def get_month_paid(contract_id: int, payment_month: str, db: Session):
-    return db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
-        Payment.contract_id == contract_id,
-        Payment.payment_month == payment_month,
-        Payment.status == PaymentStatus.CONFIRMED
-    ).scalar()
+    """Учитывает multi-month allocations и старые записи."""
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        raise HTTPException(404, "Контракт не найден")
+    period = find_contract_period(contract, payment_month)
+    if period is None:
+        return Decimal("0")
+    return confirmed_by_period(contract, db).get(period.index, Decimal("0"))
 
 
 def _create_payment(
@@ -141,18 +157,9 @@ def _create_payment(
     elif user.role != UserRole.ADMIN:
         raise HTTPException(403, "Нет доступа")
 
-    if contract.type == ContractType.ACADEMY:
-        if not data.payment_month:
-            raise HTTPException(422, "Укажите месяц")
-
-        period = find_contract_period(contract, data.payment_month)
-
-        if period is None:
-            raise HTTPException(409, "Месяц не входит в график оплаты контракта")
-
-        payment_month = period.month
-    else:
-        payment_month = data.payment_month or current_month()
+    # Проверка номера месяца выполняется после идемпотентного поиска запроса:
+    # повторный request_id обязан возвращать исходный платёж.
+    payment_month = data.payment_month or current_month()
 
     request_id = str(data.request_id)
 
@@ -166,7 +173,10 @@ def _create_payment(
             or payment.contract_id != data.contract_id
             or payment.amount != data.amount
             or payment.payment_method != data.payment_method
-            or payment.payment_month != payment_month
+            or (data.payment_month is not None and payment.payment_month != data.payment_month
+                and contract.type == ContractType.ACADEMY)
+            or (contract.type == ContractType.COLLEGE
+                and payment.payment_month != payment_month)
         ):
             raise HTTPException(409, "Этот request_id уже используется")
 
@@ -175,29 +185,25 @@ def _create_payment(
     if contract.status != ContractStatus.ACTIVE:
         raise HTTPException(409, "Контракт не активен")
 
-    if contract.type == ContractType.ACADEMY:
-        month_paid = get_month_paid(contract.id, payment_month, db)
-        month_remaining = contract.monthly_payment - month_paid
-
-        if month_remaining <= 0:
-            raise HTTPException(409, "Этот месяц уже полностью оплачен")
-
-        pending = db.query(Payment.id).filter(
-            Payment.contract_id == contract.id,
-            Payment.payment_month == payment_month,
-            Payment.status == PaymentStatus.PENDING
-        ).first()
-
-        if pending:
-            raise HTTPException(409, "Платёж за этот месяц ожидает проверки")
-
-        if data.amount > month_remaining:
-            raise HTTPException(409, "Сумма превышает остаток за месяц")
+    # Пока Finik ожидает webhook, новый платёж по этому контракту
+    # не создаём: иначе можно зарезервировать одни и те же периоды.
+    pending = db.query(Payment.id).filter(
+        Payment.contract_id == contract.id,
+        Payment.status == PaymentStatus.PENDING
+    ).first()
+    if pending:
+        raise HTTPException(409, "Сначала завершите ожидающий платёж")
 
     reserved = get_reserved_amount(contract.id, db)
-
     if data.amount > contract.total_amount - reserved:
         raise HTTPException(409, "Сумма превышает доступный остаток")
+
+    allocation_rows = distribute_payment(
+        contract, db, data.amount,
+        requested_month=data.payment_month if contract.type == ContractType.ACADEMY else None
+    )
+    if contract.type == ContractType.ACADEMY:
+        payment_month = allocation_rows[0]["payment_month"]
 
     if user.role == UserRole.ADMIN:
         if not data.payment_method or not data.payment_method.strip():
@@ -225,6 +231,7 @@ def _create_payment(
     )
 
     db.add(payment)
+    save_allocations(payment, db, allocation_rows)
 
     try:
         db.commit()
@@ -314,21 +321,12 @@ def update_payment_status(
         if contract.status != ContractStatus.ACTIVE:
             raise HTTPException(409, "Контракт не активен")
 
-        if contract.type == ContractType.ACADEMY:
-            period = find_contract_period(contract, payment.payment_month)
-
-            if period is None:
-                raise HTTPException(409, "Месяц не входит в график оплаты контракта")
-
-            month_paid = get_month_paid(contract.id, payment.payment_month, db)
-
-            if payment.amount > contract.monthly_payment - month_paid:
-                raise HTTPException(409, "Превышена сумма оплаты за месяц")
+        allocations = prepare_confirmation(payment, contract, db)
 
         balance = calculate_balance(contract.id, db)
-
         if payment.amount > balance["remaining_amount"]:
             raise HTTPException(409, "Сумма превышает остаток контракта")
+        save_allocations(payment, db, allocations)
 
     payment.status = data.status
     payment.confirmed_by_admin_id = admin.id
