@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from myproject.api.payments import (
-    _create_payment, calculate_balance, get_month_paid, get_reserved_amount
+    _create_payment, calculate_balance, get_reserved_amount
 )
 from myproject.core.dependencies import get_current_admin, get_current_student
 from myproject.database.db import get_db
@@ -24,7 +24,7 @@ from myproject.database.schemas import (
 from myproject.services.finik import (
     ensure_config, create_finik_payment, validate_payment_url, verify_webhook
 )
-from myproject.services.schedule import find_contract_period
+from myproject.services.payment_allocation import prepare_confirmation, save_allocations
 
 
 finik_router = APIRouter(tags=["Finik"])
@@ -358,18 +358,8 @@ def resolve_finik_transaction(
         elif not transaction.provider_transaction_id:
             raise HTTPException(422, "Укажите Transaction ID Finik")
 
-        if contract.type == ContractType.ACADEMY:
-            period = find_contract_period(contract, payment.payment_month)
-
-            if period is None:
-                raise HTTPException(409, "Месяц не входит в график оплаты контракта")
-
-            month_paid = get_month_paid(
-                contract.id, payment.payment_month, db
-            )
-
-            if payment.amount > contract.monthly_payment - month_paid:
-                raise HTTPException(409, "Превышена сумма оплаты за месяц")
+        # Сверяем весь график взносов, включая несколько месяцев.
+        allocations = prepare_confirmation(payment, contract, db)
 
         reserved = get_reserved_amount(
             contract.id, db, exclude_payment_id=payment.id
@@ -378,6 +368,7 @@ def resolve_finik_transaction(
         if payment.amount > contract.total_amount - reserved:
             raise HTTPException(409, "Сумма превышает остаток контракта")
 
+        save_allocations(payment, db, allocations)
         payment.status = PaymentStatus.CONFIRMED
         payment.paid_at = now
         payment.confirmed_by_admin_id = admin.id
@@ -546,16 +537,12 @@ async def finik_webhook(
     )["remaining_amount"]:
         reasons.append("balance_exceeded")
 
-    if contract.type == ContractType.ACADEMY:
-        period = find_contract_period(contract, payment.payment_month)
-
-        if period is None:
-            reasons.append("month_out_of_schedule")
-        elif payment.amount > (
-            contract.monthly_payment
-            - get_month_paid(contract.id, payment.payment_month, db)
-        ):
-            reasons.append("month_exceeded")
+    allocations = None
+    if not reasons:
+        try:
+            allocations = prepare_confirmation(payment, contract, db)
+        except HTTPException:
+            reasons.append("period_allocation_conflict")
 
     if reasons:
         transaction.status = "review"
@@ -566,6 +553,7 @@ async def finik_webhook(
         )
     else:
         now = datetime.utcnow()
+        save_allocations(payment, db, allocations)
         payment.status = PaymentStatus.CONFIRMED
         payment.paid_at = now
         payment.confirmed_by_admin_id = None
