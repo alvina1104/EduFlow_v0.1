@@ -15,16 +15,18 @@ from myproject.core.dependencies import get_current_admin, get_current_student
 from myproject.database.db import get_db
 from myproject.database.models import (
     Contract, ContractStatus, ContractType,
-    FinikTransaction, Payment, PaymentStatus, Student, User
+    FinikReceipt, FinikTransaction, Payment, PaymentStatus, Student, User, UserRole
 )
 from myproject.database.schemas import (
     FinikPaymentCreateSchema, FinikResolveSchema,
-    FinikTransactionResponseSchema, PaymentCreateSchema
+    FinikTransactionResponseSchema, FinikReceiptResponseSchema, PaymentCreateSchema
 )
 from myproject.services.finik import (
     ensure_config, create_finik_payment, validate_payment_url, verify_webhook
 )
 from myproject.services.payment_allocation import prepare_confirmation, save_allocations
+from myproject.services.finik_receipts import create_finik_receipt
+from myproject.core.dependencies import get_current_user
 
 
 finik_router = APIRouter(tags=["Finik"])
@@ -196,6 +198,43 @@ def get_online_payment(
         "payment_url": transaction.payment_url if transaction else None,
         "provider_status": transaction.status if transaction else "not_created"
     }
+
+
+@finik_router.get(
+    "/finik/receipts/{payment_id}",
+    response_model=FinikReceiptResponseSchema
+)
+def get_finik_receipt(
+    payment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Квитанция EduFlow: только владельцу контракта или администратору."""
+    payment = db.query(Payment).filter(
+        Payment.id == payment_id,
+        Payment.payment_method == "finik"
+    ).first()
+
+    if not payment:
+        raise HTTPException(404, "Платёж Finik не найден")
+
+    if user.role == UserRole.STUDENT:
+        student = db.query(Student).filter(Student.user_id == user.id).first()
+        if not student or payment.contract.student_id != student.id:
+            raise HTTPException(403, "Нет доступа к квитанции")
+    elif user.role != UserRole.ADMIN:
+        raise HTTPException(403, "Нет доступа")
+
+    if payment.status != PaymentStatus.CONFIRMED:
+        raise HTTPException(409, "Платёж ещё не подтверждён")
+
+    receipt = db.query(FinikReceipt).filter(
+        FinikReceipt.payment_id == payment.id
+    ).first()
+    if not receipt:
+        raise HTTPException(404, "Квитанция не найдена")
+
+    return receipt
 
 
 @finik_router.get(
@@ -375,6 +414,8 @@ def resolve_finik_transaction(
         transaction.status = "confirmed"
         transaction.confirmed_at = now
         transaction.review_reason = None
+        create_finik_receipt(payment, transaction, db, "signed_webhook")
+        create_finik_receipt(payment, transaction, db, "admin_reconciliation")
     else:
         if transaction.status == "confirmed":
             raise HTTPException(409, "Подтверждённый платёж нельзя отклонить")
