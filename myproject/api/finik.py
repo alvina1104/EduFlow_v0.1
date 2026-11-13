@@ -414,7 +414,6 @@ def resolve_finik_transaction(
         transaction.status = "confirmed"
         transaction.confirmed_at = now
         transaction.review_reason = None
-        create_finik_receipt(payment, transaction, db, "signed_webhook")
         create_finik_receipt(payment, transaction, db, "admin_reconciliation")
     else:
         if transaction.status == "confirmed":
@@ -601,6 +600,7 @@ async def finik_webhook(
         transaction.status = "confirmed"
         transaction.confirmed_at = now
         transaction.review_reason = None
+        create_finik_receipt(payment, transaction, db, "signed_webhook")
 
     try:
         db.commit()
