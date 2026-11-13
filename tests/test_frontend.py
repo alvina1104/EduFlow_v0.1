@@ -52,3 +52,18 @@ def test_login_has_accessible_password_toggle_and_error_message():
     assert '.password-toggle' in css
     assert 'function logo(){' in js
     assert 'eduflow-brand-mark' in js
+
+
+def test_clean_campus_theme_and_fonts():
+    root = Path(__file__).resolve().parents[1] / "myproject" / "frontend"
+    html = (root / "index.html").read_text(encoding="utf-8")
+    css = (root / "styles.css").read_text(encoding="utf-8")
+    js = (root / "app.js").read_text(encoding="utf-8")
+
+    assert 'data-theme="light" data-accent="blue"' in html
+    assert 'family=Onest' in css
+    assert 'family=Golos+Text' in css
+    assert '--font-display:' in css
+    assert 'body[data-theme=dark]' in css
+    assert 'body[data-theme=light]' in css
+    assert ':"blue"};' in js
