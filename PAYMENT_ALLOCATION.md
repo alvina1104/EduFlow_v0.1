@@ -101,8 +101,8 @@
 - `payments.created_at` хранит день и время создания, `paid_at`
   хранит день и время подтверждения. `finik_transactions.confirmed_at`
   хранит время успешной сверки. Текущий Backend сохраняет UTC в
-  `timestamp without time zone`; Frontend показывает UTC с переводом
-  в `Asia/Bishkek`. Изменение типа существующих полей времени требует
+  `timestamp without time zone`. Новый Frontend должен переводить UTC
+  в `Asia/Bishkek` при отображении. Изменение типа существующих полей времени требует
   отдельной проверенной миграции.
 - Старые подтверждённые платежи без `payment_allocations` продолжают
   учитываться при расчётах. Для академии — по `payment_month`,
@@ -139,7 +139,6 @@ pytest -q tests/test_payments_httpx.py tests/test_finik.py tests/test_api.py
 - `myproject/database/models.py` — Mentor, installment_count, PaymentAllocation.
 - `myproject/database/schemas.py` — новые поля API.
 - `migrations/versions/c4af9e8d2a61_add_mentor_and_payment_allocations.py` — миграция.
-- `myproject/frontend/app.js` — отображение ментора, взносов и времени.
 - `tests/test_payment_allocations.py` — новые проверки.
 - `tests/test_api.py`, `tests/test_finik.py`,
   `tests/test_payments_httpx.py` — тестовые данные для последовательной оплаты.
