@@ -11,6 +11,15 @@ class BaseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class NotificationResponseSchema(BaseSchema):
+    id: int
+    type: str
+    title: str
+    message: str
+    is_read: bool
+    created_at: datetime
+
+
 class UserCreateSchema(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8, max_length=128)

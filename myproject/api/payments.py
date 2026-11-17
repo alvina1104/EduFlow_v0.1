@@ -18,6 +18,7 @@ from myproject.services.payment_allocation import (
     payment_plan, confirmed_by_period, distribute_payment,
     prepare_confirmation, save_allocations
 )
+from myproject.services.notifications import notify_payment_confirmed
 
 payments_router = APIRouter(prefix="/payments", tags=["Payments"])
 
@@ -232,6 +233,9 @@ def _create_payment(
 
     db.add(payment)
     save_allocations(payment, db, allocation_rows)
+    if payment.status == PaymentStatus.CONFIRMED:
+        db.flush()
+        notify_payment_confirmed(db, payment, contract)
 
     try:
         db.commit()
@@ -334,6 +338,8 @@ def update_payment_status(
         datetime.utcnow()
         if data.status == PaymentStatus.CONFIRMED else None
     )
+    if data.status == PaymentStatus.CONFIRMED:
+        notify_payment_confirmed(db, payment, contract)
 
     db.commit()
     db.refresh(payment)

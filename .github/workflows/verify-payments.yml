@@ -9,6 +9,7 @@ on:
       - fix/login-diagnostics-remove-tag
       - feature/professional-dark-ui-preview
       - chore/remove-legacy-frontend
+      - feature/backend-notifications
   workflow_dispatch:
 
 permissions:
@@ -74,6 +75,9 @@ jobs:
 
       - name: Verify backend routes without legacy frontend
         run: python -m pytest -q tests/test_backend_routes.py
+
+      - name: Verify notification API and events
+        run: python -m pytest -q tests/test_notifications.py
 
       - name: Verify exact requested test files
         run: |

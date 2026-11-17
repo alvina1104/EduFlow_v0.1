@@ -26,6 +26,7 @@ from myproject.services.finik import (
 )
 from myproject.services.payment_allocation import prepare_confirmation, save_allocations
 from myproject.services.finik_receipts import create_finik_receipt
+from myproject.services.notifications import notify_payment_confirmed
 from myproject.core.dependencies import get_current_user
 
 
@@ -415,6 +416,7 @@ def resolve_finik_transaction(
         transaction.confirmed_at = now
         transaction.review_reason = None
         create_finik_receipt(payment, transaction, db, "admin_reconciliation")
+        notify_payment_confirmed(db, payment, contract)
     else:
         if transaction.status == "confirmed":
             raise HTTPException(409, "Подтверждённый платёж нельзя отклонить")
@@ -601,6 +603,7 @@ async def finik_webhook(
         transaction.confirmed_at = now
         transaction.review_reason = None
         create_finik_receipt(payment, transaction, db, "signed_webhook")
+        notify_payment_confirmed(db, payment, contract)
 
     try:
         db.commit()
