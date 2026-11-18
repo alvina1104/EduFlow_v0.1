@@ -14,7 +14,7 @@ def test_legacy_frontend_is_not_served():
 
 
 def test_core_backend_routes_remain_registered():
-    paths = {route.path for route in edu_app.routes}
+    paths = set(edu_app.openapi()["paths"])
     assert "/auth/login" in paths
     assert "/students/" in paths
     assert "/groups/" in paths
