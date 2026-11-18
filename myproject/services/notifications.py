@@ -16,8 +16,8 @@ def create_notification(
     statement = insert(Notification).values(
         user_id=user_id, type=type, title=title, message=message,
         event_key=event_key, is_read=False
-    ).on_conflict_do_nothing(index_elements=["event_key"])
-    return db.execute(statement).rowcount == 1
+    ).on_conflict_do_nothing(index_elements=["event_key"]).returning(Notification.id)
+    return db.execute(statement).scalar_one_or_none() is not None
 
 
 def notify_payment_confirmed(db: Session, payment: Payment, contract: Contract) -> None:
