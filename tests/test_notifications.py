@@ -42,7 +42,17 @@ def test_notification_access_is_private(client, db_session, actors, auth_headers
 
 
 def test_payment_reminders_once(db_session, actors, contract_factory):
-    contract_factory()
+    from myproject.database.models import Contract, ContractStatus, ContractType
+    from myproject.services.payment_allocation import payment_plan
+
+    contract = contract_factory()
+    assert contract.status == ContractStatus.ACTIVE
+    assert contract.type == ContractType.ACADEMY
+    assert payment_plan(contract)[0]["due_date"] == date(2026, 1, 15)
+    assert db_session.query(Contract).filter(
+        Contract.status == ContractStatus.ACTIVE,
+        Contract.type == ContractType.ACADEMY
+    ).count() == 1
     assert send_payment_reminders(db_session, today=date(2026, 1, 12)) == 1
     assert send_payment_reminders(db_session, today=date(2026, 1, 12)) == 0
     assert send_payment_reminders(db_session, today=date(2026, 1, 16)) == 1
