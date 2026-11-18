@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from myproject.database.db import get_db
-from myproject.database.models import Schedule, Group, User
+from myproject.database.models import Schedule, Group, Student, User
 from myproject.database.schemas import ScheduleCreateSchema, ScheduleResponseSchema
 from myproject.core.dependencies import get_current_admin
+from myproject.services.notifications import create_notification
 
 schedules_router = APIRouter(prefix="/schedules", tags=["Schedules"])
 
@@ -65,8 +66,22 @@ def update_schedule(schedule_id: int, data: ScheduleCreateSchema, db: Session = 
     if check_schedule_conflict(db, data, exclude_id=schedule_id):
         raise HTTPException(409, "У группы уже есть занятие в это время")
 
+    changed = any(
+        getattr(schedule, key) != value for key, value in data.model_dump().items()
+    )
     for key, value in data.model_dump().items():
         setattr(schedule, key, value)
+
+    if changed:
+        users = db.query(Student.user_id).filter(
+            Student.group_id.in_(group_ids)
+        ).distinct().all()
+        for (user_id,) in users:
+            create_notification(
+                db, user_id, "schedule_changed", "Расписание изменено",
+                f"Занятие «{schedule.title}»: {schedule.weekday}, "
+                f"{schedule.start_time:%H:%M}–{schedule.end_time:%H:%M}."
+            )
 
     try:
         db.commit()

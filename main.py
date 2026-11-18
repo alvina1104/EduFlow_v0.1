@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 import uvicorn
 from myproject.api import (auth, contracts, groups, payments, personal_info, students,
-                           users, schedules, study, finik)
+                           users, schedules, study, finik, notifications)
 from myproject.database.db import engine
 
 
@@ -25,7 +25,7 @@ edu_app.include_router(users.user_router)
 edu_app.include_router(schedules.schedules_router)
 edu_app.include_router(study.study_router)
 edu_app.include_router(finik.finik_router)
-
+edu_app.include_router(notifications.notifications_router)
 
 
 @edu_app.get("/health", tags=["Health"], summary="Проверка состояния приложения и базы данных")

@@ -18,7 +18,7 @@ def _body(contract, **overrides):
         "contract_id": contract.id,
         "amount": "100.00",
         "payment_method": "cash",
-        "payment_month": "2026-10",
+        "payment_month": "2026-01",
         **overrides,
     }
 
@@ -30,7 +30,7 @@ def test_student_and_admin_payment_creation(client, actors, auth_headers, contra
     assert student_response.status_code == 403
 
     admin_response = client.post("/payments/", headers=auth_headers(actors["admin"]),
-                                 json=_body(contract, payment_month="2026-09"))
+                                 json=_body(contract, payment_month="2026-01"))
     assert admin_response.status_code == 201
     assert admin_response.json()["status"] == "confirmed"
     assert admin_response.json()["confirmed_by_admin_id"] == actors["admin"].id
@@ -91,7 +91,7 @@ def test_pending_blocks_month_and_rejected_allows_resubmission(
     payment = Payment(
         contract_id=contract.id, amount=Decimal("50.00"),
         status=PaymentStatus.PENDING, payment_method="cash",
-        payment_month="2026-10", request_id=str(uuid4()),
+        payment_month="2026-01", request_id=str(uuid4()),
         created_by_user_id=actors["student_user"].id,
     )
     db_session.add(payment)
@@ -115,13 +115,13 @@ def test_confirmation_checks_month_and_contract_caps(client, actors, auth_header
     month_pending = Payment(
         contract_id=month_contract.id, amount=Decimal("40.00"),
         status=PaymentStatus.PENDING, payment_method="cash",
-        payment_month="2026-10", request_id=str(uuid4()),
+        payment_month="2026-02", request_id=str(uuid4()),
         created_by_user_id=actors["student_user"].id,
     )
     db_session.add(month_pending)
     db_session.flush()
     db_session.add(Payment(contract_id=month_contract.id, amount=Decimal("70.00"),
-                           status=PaymentStatus.CONFIRMED, payment_method="cash", payment_month="2026-10"))
+                           status=PaymentStatus.CONFIRMED, payment_method="cash", payment_month="2026-01"))
     db_session.flush()
     month_result = client.patch(f"/payments/{month_pending.id}/status",
                                 headers=auth_headers(actors["admin"]), json={"status": "confirmed"})
@@ -131,7 +131,7 @@ def test_confirmation_checks_month_and_contract_caps(client, actors, auth_header
     total_pending = Payment(
         contract_id=total_contract.id, amount=Decimal("50.00"),
         status=PaymentStatus.PENDING, payment_method="cash",
-        payment_month="2026-10", request_id=str(uuid4()),
+        payment_month="2026-01", request_id=str(uuid4()),
         created_by_user_id=actors["student_user"].id,
     )
     db_session.add(total_pending)
@@ -234,7 +234,7 @@ def test_confirmation_reread_does_not_use_stale_orm_state(
     payment = Payment(
         contract_id=contract.id, amount=Decimal("20.00"),
         status=PaymentStatus.PENDING, payment_method="cash",
-        payment_month="2026-10", request_id=str(uuid4()),
+        payment_month="2026-01", request_id=str(uuid4()),
         created_by_user_id=actors["student_user"].id,
     )
     db_session.add(payment)
@@ -278,7 +278,7 @@ def test_concurrent_confirmation_serializes_and_rechecks_status(
     payment = Payment(
         contract_id=contract.id, amount=Decimal("20.00"),
         status=PaymentStatus.PENDING, payment_method="cash",
-        payment_month="2026-10", request_id=str(uuid4()),
+        payment_month="2026-01", request_id=str(uuid4()),
         created_by_user_id=actors["student_user"].id,
     )
     db_session.add(payment)
