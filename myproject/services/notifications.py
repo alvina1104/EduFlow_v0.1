@@ -1,5 +1,8 @@
 """Уведомления об оплате и расписании."""
+import logging
+import sys
 from datetime import date, datetime, timedelta
+from time import sleep
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.dialects.postgresql import insert
@@ -46,7 +49,9 @@ def send_payment_reminders(db: Session, today: date | None = None) -> int:
         paid = confirmed_by_period(contract, db)
         for period in payment_plan(contract):
             due_date = period["due_date"]
-            if due_date > today + timedelta(days=3):
+            # Только за 3 дня до срока и на следующий день после него.
+            # Не создаём пачку старых уведомлений при первом запуске.
+            if due_date not in (today + timedelta(days=3), today - timedelta(days=1)):
                 continue
             remaining = period["amount"] - paid[period["index"]]
             if remaining <= 0:
@@ -68,8 +73,31 @@ def send_payment_reminders(db: Session, today: date | None = None) -> int:
     return sent
 
 
-if __name__ == "__main__":
+def run_daily() -> None:
+    """Каждый день в 09:00 по Бишкеку, отдельным Docker Compose сервисом."""
     from myproject.database.db import SessionLocal
 
-    with SessionLocal() as session:
-        print(send_payment_reminders(session))
+    timezone = ZoneInfo("Asia/Bishkek")
+    while True:
+        now = datetime.now(timezone)
+        scheduled = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        if scheduled <= now:
+            scheduled += timedelta(days=1)
+        sleep((scheduled - now).total_seconds())
+        try:
+            with SessionLocal() as session:
+                sent = send_payment_reminders(session)
+            logging.info("Payment reminders sent: %s", sent)
+        except Exception:
+            logging.exception("Payment reminder job failed")
+
+
+if __name__ == "__main__":
+    if "--daily" in sys.argv:
+        logging.basicConfig(level=logging.INFO)
+        run_daily()
+    else:
+        from myproject.database.db import SessionLocal
+
+        with SessionLocal() as session:
+            print(send_payment_reminders(session))

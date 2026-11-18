@@ -77,3 +77,15 @@ def test_schedule_edit_notifies_group_not_noop(client, actors, auth_headers):
     notifications = client.get("/notifications/", headers=auth_headers(actors["student_user"])).json()
     assert len(notifications) == 1
     assert notifications[0]["type"] == "schedule_changed"
+
+
+def test_old_unpaid_months_do_not_trigger_mass_reminders(db_session, contract_factory):
+    contract_factory()
+    assert send_payment_reminders(db_session, today=date(2026, 11, 18)) == 0
+    assert db_session.query(Notification).count() == 0
+
+
+def test_payment_reminders_do_not_send_before_three_day_window(db_session, contract_factory):
+    contract_factory()
+    assert send_payment_reminders(db_session, today=date(2026, 1, 11)) == 0
+    assert db_session.query(Notification).count() == 0

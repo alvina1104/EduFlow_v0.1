@@ -19,15 +19,36 @@ services:
       retries: 3
       start_period: 20s
 
+  reminders:
+    build:
+      context: .
+      dockerfile: myproject/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["python", "-m", "myproject.services.notifications", "--daily"]
+    depends_on:
+      post_db:
+        condition: service_healthy
+
   post_db:
-    image: postgres:17
+    image: postgres:18
+    # Stop if a 17-or-older data volume is reused; migrate explicitly with backup.
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ -f /var/lib/postgresql/PG_VERSION ] || [ -f /var/lib/postgresql/data/PG_VERSION ]; then
+          echo "Legacy PostgreSQL volume detected. Backup and upgrade to 18 before deploying." >&2
+          exit 1
+        fi
+        exec docker-entrypoint.sh postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-eduflow}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s

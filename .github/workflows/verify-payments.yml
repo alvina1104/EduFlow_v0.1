@@ -2,13 +2,7 @@ name: Verify EduFlow payments (isolated PostgreSQL)
 on:
   push:
     branches:
-      - feature/sequential-payments-college-mentor
-      - feature/finik-confirmation-receipts
-      - feature/frontend-login-ui-fix
-      - feature/frontend-clean-campus-design
-      - fix/login-diagnostics-remove-tag
-      - feature/professional-dark-ui-preview
-      - chore/remove-legacy-frontend
+      - main
       - feature/backend-notifications
   workflow_dispatch:
 
@@ -79,7 +73,5 @@ jobs:
       - name: Verify notification API and events
         run: python -m pytest -q tests/test_notifications.py
 
-      - name: Verify exact requested test files
-        run: |
-          python -m pytest -q tests/test_payment_allocations.py tests/test_finik_receipts.py
-          python -m pytest -q tests/test_payments_httpx.py tests/test_finik.py tests/test_api.py
+      - name: Verify all backend tests
+        run: python -m pytest -q tests
