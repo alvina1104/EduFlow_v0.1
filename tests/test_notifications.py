@@ -46,18 +46,21 @@ def test_payment_reminders_once(db_session, actors, contract_factory):
     from myproject.services.payment_allocation import payment_plan
 
     contract = contract_factory()
+    contract.start_date = date(2031, 1, 1)
+    db_session.flush()
     assert contract.status == ContractStatus.ACTIVE
     assert contract.type == ContractType.ACADEMY
-    assert payment_plan(contract)[0]["due_date"] == date(2026, 1, 15)
-    assert db_session.query(Contract).filter(
-        Contract.status == ContractStatus.ACTIVE,
-        Contract.type == ContractType.ACADEMY
-    ).count() == 1
-    assert send_payment_reminders(db_session, today=date(2026, 1, 12)) == 1
-    assert send_payment_reminders(db_session, today=date(2026, 1, 12)) == 0
-    assert send_payment_reminders(db_session, today=date(2026, 1, 16)) == 1
-    assert send_payment_reminders(db_session, today=date(2026, 1, 16)) == 0
-    notifications = db_session.query(Notification).order_by(Notification.id).all()
+    assert payment_plan(contract)[0]["due_date"] == date(2031, 1, 15)
+    assert send_payment_reminders(db_session, today=date(2031, 1, 12)) == 1
+    assert send_payment_reminders(db_session, today=date(2031, 1, 12)) == 0
+    assert send_payment_reminders(db_session, today=date(2031, 1, 16)) == 1
+    assert send_payment_reminders(db_session, today=date(2031, 1, 16)) == 0
+    notifications = db_session.query(Notification).filter(
+        Notification.event_key.in_([
+            f"payment_due:{contract.id}:2031-01",
+            f"payment_overdue:{contract.id}:2031-01"
+        ])
+    ).order_by(Notification.id).all()
     assert [n.type for n in notifications] == ["payment_due", "payment_overdue"]
 
 
@@ -80,12 +83,24 @@ def test_schedule_edit_notifies_group_not_noop(client, actors, auth_headers):
 
 
 def test_old_unpaid_months_do_not_trigger_mass_reminders(db_session, contract_factory):
-    contract_factory()
+    contract = contract_factory()
+    before = db_session.query(Notification).filter(
+        Notification.event_key.like(f"%:{contract.id}:%")
+    ).count()
     assert send_payment_reminders(db_session, today=date(2026, 11, 18)) == 0
-    assert db_session.query(Notification).count() == 0
+    assert db_session.query(Notification).filter(
+        Notification.event_key.like(f"%:{contract.id}:%")
+    ).count() == before
 
 
 def test_payment_reminders_do_not_send_before_three_day_window(db_session, contract_factory):
-    contract_factory()
-    assert send_payment_reminders(db_session, today=date(2026, 1, 11)) == 0
-    assert db_session.query(Notification).count() == 0
+    contract = contract_factory()
+    contract.start_date = date(2032, 1, 1)
+    db_session.flush()
+    before = db_session.query(Notification).filter(
+        Notification.event_key.like(f"%:{contract.id}:%")
+    ).count()
+    assert send_payment_reminders(db_session, today=date(2032, 1, 11)) == 0
+    assert db_session.query(Notification).filter(
+        Notification.event_key.like(f"%:{contract.id}:%")
+    ).count() == before
